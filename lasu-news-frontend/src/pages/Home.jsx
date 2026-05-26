@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { getPosts } from "../api/posts";
 
 // ─── Helper Components ───────────────────────────────────────────────
@@ -60,6 +60,7 @@ const Home = () => {
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -82,28 +83,17 @@ const Home = () => {
   useEffect(() => {
     const category = searchParams.get("category");
     const sort = searchParams.get("sort");
-    const search = searchParams.get("search");
 
     if (category) {
       setActiveCategory(category);
     } else {
       setActiveCategory("All");
     }
-
-    if (search) {
-      setSearchQuery(search);
-    } else {
-      setSearchQuery("");
-    }
   }, [searchParams]);
 
-  // Filter posts by category and search
+  // Filter posts by category
   const filteredPosts = posts.filter(post => {
-    const matchesCategory = activeCategory === "All" || post.category === activeCategory;
-    const matchesSearch = searchQuery === "" || 
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.excerpt.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return activeCategory === "All" || post.category === activeCategory;
   });
 
   // Sort posts based on query parameter
@@ -304,13 +294,8 @@ const Home = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    if (searchQuery.trim()) {
-                      searchParams.set("search", searchQuery.trim());
-                    } else {
-                      searchParams.delete("search");
-                    }
-                    setSearchParams(searchParams);
+                  if (e.key === "Enter" && searchQuery.trim()) {
+                    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
                   }
                 }}
                 className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
@@ -318,11 +303,8 @@ const Home = () => {
               <button 
                 onClick={() => {
                   if (searchQuery.trim()) {
-                    searchParams.set("search", searchQuery.trim());
-                  } else {
-                    searchParams.delete("search");
+                    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
                   }
-                  setSearchParams(searchParams);
                 }}
                 className="text-white/50 hover:text-white transition-colors"
               >
@@ -337,7 +319,7 @@ const Home = () => {
 
       {/* ── Latest News ───────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <SectionHeader title="Latest News" href="/?sort=latest" />
+        <SectionHeader title="Latest News" href="/news?sort=latest" />
 
         {/* Top 3 image cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mb-6">
@@ -403,7 +385,7 @@ const Home = () => {
 
       {/* ── Weekly Highlights ─────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <SectionHeader title="Weekly Highlights" href="/?sort=weekly" />
+        <SectionHeader title="Weekly Highlights" href="/news?sort=weekly" />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
           {weeklyHighlights.map((article) => (
             <Link
