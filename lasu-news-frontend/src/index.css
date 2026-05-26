@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  /* =========================
+     PRIMARY BRAND COLORS
+  ========================== */
+  --color-primary: #0f172a;         /* Deep navy */
+  --color-primary-dark: #020617;    /* Rich dark background */
+  --color-primary-light: #1e293b;   /* Hover / cards */
+
+  /* =========================
+     ACCENT COLORS
+  ========================== */
+  --color-accent: #f97316;          /* Vibrant orange */
+  --color-accent-dark: #ea580c;     /* Dark orange hover */
+
+  /* =========================
+     BACKGROUND & SURFACES
+  ========================== */
+  --color-background: #f8fafc;      /* Clean light background */
+  --color-surface: #ffffff;         /* Cards / sections */
+  --color-surface-dark: #111827;    /* Dark footer/navbar */
+
+  /* =========================
+     TEXT COLORS
+  ========================== */
+  --color-text: #111827;            /* Main text */
+  --color-text-light: #f9fafb;      /* White text */
+  --color-muted: #6b7280;           /* Secondary text */
+
+  /* =========================
+     BORDERS & DIVIDERS
+  ========================== */
+  --color-border: #e5e7eb;
+  --color-border-dark: #374151;
+
+  /* =========================
+     STATUS COLORS
+  ========================== */
+  --color-success: #16a34a;
+  --color-warning: #facc15;
+  --color-error: #dc2626;
+
+  /* =========================
+     NEWS CATEGORY COLORS
+  ========================== */
+  --color-sports: #2563eb;
+  --color-politics: #dc2626;
+  --color-tech: #7c3aed;
+  --color-entertainment: #ec4899;
+  --color-campus: #14b8a6;
+
+  /* =========================
+     EFFECTS
+  ========================== */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 15px 35px rgba(0, 0, 0, 0.12);
+
+  /* =========================
+     ANIMATIONS
+  ========================== */
+  --animate-marquee: marquee 30s linear infinite;
+
+  /* =========================
+     TYPOGRAPHY
+  ========================== */
+  --font-sans: "Montserrat", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Montserrat", sans-serif;
+  background-color: #f8f9fa;
+  color: #000000;
+  line-height: 1.6;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+/* ── Custom Marquee Animation ── */
+@keyframes marquee {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+/* ── Scrollbar Hide Utility (used in category filter) ── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}

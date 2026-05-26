@@ -1,0 +1,88 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
+import { AuthProvider } from "./context/AuthContext";
+import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
+import Navbar from "./components/Navbar";
+import AdminLayout from "./components/AdminLayout";
+
+import Home from "./pages/Home";
+import Article from "./pages/Article";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
+import AdminDashboard from "./pages/admin/Dashboard";
+import AdminPostList from "./pages/admin/PostList";
+import AdminPostEditor from "./pages/admin/PostEditor";
+import AdminComments from "./pages/admin/Comments";
+
+const App = () => {
+  return (
+    <HelmetProvider>
+      <AuthProvider>
+        <BrowserRouter>
+          <Navbar />
+          <Routes>
+            {/* Public */}
+            <Route path="/" element={<Home />} />
+            <Route path="/news/:slug" element={<Article />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+
+            {/* Admin */}
+            <Route
+              path="/admin"
+              element={
+                <AdminRoute>
+                  <AdminLayout>
+                    <AdminDashboard />
+                  </AdminLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/posts"
+              element={
+                <AdminRoute>
+                  <AdminLayout>
+                    <AdminPostList />
+                  </AdminLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/posts/new"
+              element={
+                <AdminRoute>
+                  <AdminLayout>
+                    <AdminPostEditor />
+                  </AdminLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/posts/edit/:id"
+              element={
+                <AdminRoute>
+                  <AdminLayout>
+                    <AdminPostEditor />
+                  </AdminLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/comments"
+              element={
+                <AdminRoute>
+                  <AdminLayout>
+                    <AdminComments />
+                  </AdminLayout>
+                </AdminRoute>
+              }
+            />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
+    </HelmetProvider>
+  );
+};
+
+export default App;
