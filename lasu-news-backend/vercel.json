@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "outputDirectory": ".",
   "builds": [
     {
       "src": "api/index.js",
@@ -15,11 +17,5 @@
       "src": "/(.*)",
       "dest": "/api/index.js"
     }
-  ],
-  "env": {
-    "DATABASE_URL": "postgresql://neondb_owner:npg_FwxjO3qHV9nm@ep-misty-truth-aqqj6qbp-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
-    "CLIENT_URL": "https://lasu-news.vercel.app",
-    "JWT_SECRET": "your-jwt-secret-key",
-    "REFRESH_TOKEN_SECRET": "your-refresh-token-secret-key"
-  }
+  ]
 }
