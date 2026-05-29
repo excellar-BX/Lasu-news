@@ -1,4 +1,4 @@
-const { PrismaClient } = require("../generated/prisma/client");
+const { PrismaClient } = require("@prisma/client");
 const { PrismaNeon } = require("@prisma/adapter-neon");
 
 const adapter = new PrismaNeon({
