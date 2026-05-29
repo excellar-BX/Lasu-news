@@ -5,6 +5,8 @@ const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth.routes");
 const postRoutes = require("./routes/post.routes");
 const commentRoutes = require("./routes/comment.route");
+const morgan = require('morgan')
+
 
 const app = express();
 
@@ -17,6 +19,8 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(morgan('dev'))
+
 
 // Routes
 app.use("/api/auth", authRoutes);
