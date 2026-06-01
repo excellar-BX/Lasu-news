@@ -1,112 +1,134 @@
-import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { getPosts } from "../api/posts";
 
-const CategoryBadge = ({ category }) => {
-  const colors = {
-    Sports: "bg-green-100 text-green-700",
-    Campus: "bg-blue-100 text-blue-700",
-    Politics: "bg-purple-100 text-purple-700",
-    General: "bg-gray-100 text-gray-600",
-  };
-  return (
-    <span
-      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-        colors[category] || colors.General
-      }`}
-    >
-      {category}
-    </span>
-  );
+const categoryColors = {
+  UPDATES: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
+  TRENDING: "bg-red-50 text-red-700 ring-1 ring-red-100",
+  OPPORTUNITIES: "bg-green-50 text-green-700 ring-1 ring-green-100",
+  SPOTLIGHT: "bg-purple-50 text-purple-700 ring-1 ring-purple-100",
+  EVENTS: "bg-orange-50 text-orange-700 ring-1 ring-orange-100",
 };
 
+const CategoryBadge = ({ category }) => (
+  <span
+    className={`inline-flex items-center text-[11px] font-bold uppercase
+                tracking-widest px-2.5 py-1 rounded-full
+                ${categoryColors[category] || categoryColors.UPDATES}`}
+  >
+    {category}
+  </span>
+);
+
 const formatTimeAgo = (date) => {
-  const now = new Date();
-  const postDate = new Date(date);
-  const diffInMinutes = Math.floor((now - postDate) / (1000 * 60));
-  
-  if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
-  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
-  return `${Math.floor(diffInMinutes / 1440)} days ago`;
+  const diff = Math.floor((Date.now() - new Date(date)) / 60000);
+  if (diff < 1) return "just now";
+  if (diff < 60) return `${diff}m ago`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+  if (diff < 10080) return `${Math.floor(diff / 1440)}d ago`;
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 };
 
 const AllNews = () => {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   const sort = searchParams.get("sort") || "latest";
-  const category = searchParams.get("category") || "All";
+  const category = searchParams.get("category")?.toUpperCase() || "ALL";
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        setLoading(true);
-        const data = await getPosts({ limit: 100 });
-        setPosts(data.posts || []);
-      } catch (err) {
-        setError("Failed to load posts");
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const queryParams = { limit: 100 };
+  if (category !== "ALL") queryParams.category = category;
+  if (sort) queryParams.sort = sort;
 
-    fetchPosts();
-  }, []);
-
-  // Filter and sort posts
-  const filteredPosts = posts.filter(post => {
-    if (category === "All") return true;
-    return post.category === category;
+  const { data: postsData, isLoading, error, isFetching } = useQuery({
+    queryKey: ["posts", "all", category, sort],
+    queryFn: () => getPosts(queryParams),
+    staleTime: 5 * 60 * 1000,
   });
 
-  const sortedPosts = [...filteredPosts].sort((a, b) => {
-    if (sort === "trending") {
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    } else if (sort === "latest") {
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    } else if (sort === "weekly") {
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const aInWeek = new Date(a.createdAt) >= oneWeekAgo;
-      const bInWeek = new Date(b.createdAt) >= oneWeekAgo;
-      if (aInWeek && !bInWeek) return -1;
-      if (!aInWeek && bInWeek) return 1;
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    }
-    return new Date(b.createdAt) - new Date(a.createdAt);
-  });
+  const posts = postsData?.posts || [];
 
-  const categories = ["All", "Campus", "Politics", "Sports", "General"];
+  const categories = [
+    "ALL",
+    "UPDATES",
+    "TRENDING",
+    "OPPORTUNITIES",
+    "SPOTLIGHT",
+    "EVENTS",
+  ];
 
   const getPageTitle = () => {
-    if (category !== "All") return `${category} News`;
+    if (category !== "ALL") return `${category.charAt(0) + category.slice(1).toLowerCase()} News`;
     if (sort === "trending") return "Trending News";
     if (sort === "weekly") return "Weekly Highlights";
     return "Latest News";
   };
 
-  if (loading) {
+  /* ─── Loading skeleton ─────────────────────────────────────────────── */
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e63946] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading news...</p>
-        </div>
+      <div className="min-h-screen bg-[#f8fafc] pt-8">
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 mb-6">
+          <div className="h-8 w-48 bg-gray-100 rounded-xl animate-pulse mb-2" />
+          <div className="h-5 w-32 bg-gray-100 rounded animate-pulse" />
+        </section>
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 mb-6">
+          <div className="flex gap-3 mb-4 overflow-x-auto scrollbar-hide">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-9 w-24 bg-gray-100 rounded-full
+                                     animate-pulse flex-shrink-0" />
+            ))}
+          </div>
+        </section>
+        <section className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl overflow-hidden
+                                     border border-gray-100 animate-pulse">
+                <div className="h-48 bg-gray-100" />
+                <div className="p-5 space-y-3">
+                  <div className="h-4 w-16 bg-gray-100 rounded-full" />
+                  <div className="h-5 bg-gray-100 rounded" />
+                  <div className="h-4 bg-gray-100 rounded w-3/4" />
+                  <div className="h-3 w-20 bg-gray-100 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
     );
   }
 
+  /* ─── Error state ──────────────────────────────────────────────────── */
   if (error) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-[#e63946] text-white rounded-lg hover:bg-red-700"
+      <div className="min-h-screen bg-[#f8fafc] flex items-center
+                      justify-center p-4">
+        <div className="bg-white rounded-2xl border border-gray-100 p-8
+                        max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center
+                          justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-red-500" fill="none"
+              stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round"
+                strokeWidth={1.75}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-[#0a0a0a] mb-2">
+            Failed to Load
+          </h2>
+          <p className="text-sm text-gray-500 mb-6">
+            {error?.message || "Unable to load posts. Please try again."}
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-5 py-2.5 bg-[#e63946] text-white rounded-xl
+                       font-semibold text-sm hover:bg-red-700
+                       transition-colors"
           >
             Retry
           </button>
@@ -116,52 +138,69 @@ const AllNews = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
-      {/* Header */}
+    <div className="min-h-screen bg-[#f8fafc] pb-16">
+      {/* ── Header ── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6">
-        <h1 className="text-3xl font-black text-[#0a0a0a]">{getPageTitle()}</h1>
-        <p className="text-gray-600 mt-2">
-          {sortedPosts.length} {sortedPosts.length === 1 ? "article" : "articles"} found
+        <h1 className="text-3xl sm:text-4xl font-black text-[#0a0a0a]
+                       tracking-tight">
+          {getPageTitle()}
+        </h1>
+        <p className="text-sm text-gray-400 mt-2">
+          {posts.length} {posts.length === 1 ? "article" : "articles"} found
+          {isFetching && (
+            <span className="ml-2 text-[#e63946]">• Refreshing...</span>
+          )}
         </p>
       </section>
 
-      {/* Filters */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-        <div className="flex flex-wrap items-center gap-4">
-          {/* Category Filter */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
+      {/* ── Filters ── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-4 border-b
+                          border-gray-100 sticky top-0 bg-[#f8fafc]/95
+                          backdrop-blur-sm z-30">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center
+                        gap-4">
+          {/* Category filter */}
+          <div className="flex items-center gap-2 overflow-x-auto
+                          scrollbar-hide w-full sm:w-auto">
             {categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => {
-                  if (cat === "All") {
+                  if (cat === "ALL") {
                     searchParams.delete("category");
                   } else {
                     searchParams.set("category", cat);
                   }
                   setSearchParams(searchParams);
                 }}
-                className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                  category === cat
-                    ? "bg-[#0a0a0a] text-white"
-                    : "bg-white text-[#6b7280] hover:bg-gray-100 border border-[#e5e7eb]"
-                }`}
+                className={`shrink-0 px-4 py-2 rounded-full text-sm
+                            font-semibold transition-all
+                            ${category === cat
+                              ? "bg-[#0a0a0a] text-white shadow-sm"
+                              : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                            }`}
               >
-                {cat}
+                {cat.charAt(0) + cat.slice(1).toLowerCase()}
               </button>
             ))}
           </div>
 
-          {/* Sort Filter */}
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-sm text-gray-600">Sort by:</span>
+          {/* Sort filter */}
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <span className="text-xs text-gray-400 font-medium uppercase
+                             tracking-wider">
+              Sort:
+            </span>
             <select
               value={sort}
               onChange={(e) => {
                 searchParams.set("sort", e.target.value);
                 setSearchParams(searchParams);
               }}
-              className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#e63946]"
+              className="px-3 py-2 rounded-xl border border-gray-200
+                         bg-white text-sm font-medium text-gray-700
+                         focus:ring-2 focus:ring-[#e63946]/30
+                         focus:border-[#e63946] outline-none transition-all"
             >
               <option value="latest">Latest</option>
               <option value="trending">Trending</option>
@@ -171,44 +210,82 @@ const AllNews = () => {
         </div>
       </section>
 
-      {/* Posts Grid */}
+      {/* ── Posts Grid ── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {sortedPosts.length === 0 ? (
-          <div className="bg-white rounded-xl p-12 text-center">
-            <p className="text-gray-500">No articles found</p>
+        {posts.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100
+                          py-20 text-center">
+            <div className="w-16 h-16 bg-gray-50 rounded-2xl flex
+                            items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-gray-200" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1
+                     1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0
+                     01-2 2z" />
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-gray-700 mb-1">
+              No articles found
+            </p>
+            <p className="text-sm text-gray-400 mb-4">
+              Try adjusting your filters or browse all news.
+            </p>
             <Link
               to="/"
-              className="inline-block mt-4 text-[#e63946] font-semibold hover:underline"
+              className="inline-flex items-center gap-2 text-sm font-semibold
+                         text-[#e63946] hover:underline underline-offset-2"
             >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
               Back to Home
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedPosts.map((article) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3
+                          gap-6">
+            {posts.map((article) => (
               <Link
                 key={article.id}
                 to={`/news/${article.slug}`}
-                className="bg-white rounded-2xl overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
+                className="bg-white rounded-2xl overflow-hidden group
+                           cursor-pointer hover:shadow-lg transition-all
+                           duration-300 border border-gray-100
+                           hover:border-gray-200"
               >
-                <div className="overflow-hidden">
-                  <img
-                    src={article.coverImage}
-                    alt={article.title}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
+                {article.coverImage && (
+                  <div className="overflow-hidden bg-gray-100">
+                    <img
+                      src={article.coverImage}
+                      alt={article.title}
+                      className="w-full h-48 object-cover
+                                 group-hover:scale-105 transition-transform
+                                 duration-500"
+                    />
+                  </div>
+                )}
                 <div className="p-5">
                   <CategoryBadge category={article.category} />
-                  <h3 className="text-[#0a0a0a] font-bold text-base leading-snug mt-2 mb-3 line-clamp-2">
+                  <h3 className="text-[#0a0a0a] font-bold text-base
+                                 leading-snug mt-3 mb-3 line-clamp-2
+                                 group-hover:text-[#e63946] transition-colors">
                     {article.title}
                   </h3>
-                  <p className="text-gray-600 text-sm line-clamp-3 mb-4">
+                  <p className="text-gray-600 text-sm line-clamp-3 mb-4
+                                leading-relaxed">
                     {article.excerpt}
                   </p>
-                  <div className="flex items-center gap-1.5 text-[#9ca3af] text-xs">
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <div className="flex items-center gap-1.5 text-gray-400
+                                  text-xs">
+                    <svg className="w-3.5 h-3.5" fill="none"
+                      stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     {formatTimeAgo(article.createdAt)}
                   </div>

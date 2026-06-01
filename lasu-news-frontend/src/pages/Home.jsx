@@ -1,480 +1,901 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { getPosts } from "../api/posts";
+import { Mail, Phone, MapPin, ExternalLink } from "lucide-react";
 
-// ─── Helper Components ───────────────────────────────────────────────
-const CategoryBadge = ({ category }) => {
-  const colors = {
-    Sports: "bg-green-100 text-green-700",
-    Campus: "bg-blue-100 text-blue-700",
-    Politics: "bg-purple-100 text-purple-700",
-    General: "bg-gray-100 text-gray-600",
-  };
-  return (
-    <span
-      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-        colors[category] || colors.General
-      }`}
-    >
-      {category}
-    </span>
-  );
+// ─── Constants ───────────────────────────────────────────────────────
+const CATEGORIES = ["All", "Updates", "Trending", "Opportunities", "Spotlight", "Events"];
+
+const CATEGORY_COLORS = {
+  UPDATES: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
+  TRENDING: "bg-red-50 text-red-700 ring-1 ring-red-100",
+  OPPORTUNITIES: "bg-green-50 text-green-700 ring-1 ring-green-100",
+  SPOTLIGHT: "bg-purple-50 text-purple-700 ring-1 ring-purple-100",
+  EVENTS: "bg-orange-50 text-orange-700 ring-1 ring-orange-100",
 };
 
+// ─── Helpers ─────────────────────────────────────────────────────────
+const formatTimeAgo = (date) => {
+  const diff = Math.floor((Date.now() - new Date(date)) / 60000);
+  if (diff < 1) return "just now";
+  if (diff < 60) return `${diff}m ago`;
+  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+  if (diff < 10080) return `${Math.floor(diff / 1440)}d ago`;
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+};
+
+const getFallbackImage = (title = "") =>
+  `https://placehold.co/800x450/f3f4f6/6b7280?text=${encodeURIComponent(
+    title.slice(0, 20)
+  )}`;
+
+// ─── Sub-components ──────────────────────────────────────────────────
+
+const CategoryBadge = ({ category }) => (
+  <span
+    className={`inline-flex items-center text-[11px] font-bold uppercase
+                tracking-widest px-2.5 py-1 rounded-full
+                ${CATEGORY_COLORS[category] ?? CATEGORY_COLORS.UPDATES}`}
+  >
+    {category}
+  </span>
+);
+
 const SectionHeader = ({ title, href }) => (
-  <div className="flex items-center justify-between mb-5">
-    <h2 className="text-xl font-black text-[#0a0a0a] tracking-tight">{title}</h2>
+  <div className="flex items-center justify-between mb-6">
+    <div>
+      <h2 className="text-2xl sm:text-3xl font-black text-[#0a0a0a]
+                     tracking-tight">
+        {title}
+      </h2>
+    </div>
     {href && (
       <Link
         to={href}
-        className="text-sm text-[#e63946] font-semibold hover:underline flex items-center gap-1"
+        className="inline-flex items-center gap-2 text-sm font-semibold
+                   text-[#e63946] hover:text-red-700 transition-colors
+                   group"
       >
         See More
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform"
+          fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+            d="M9 5l7 7-7 7" />
         </svg>
       </Link>
     )}
   </div>
 );
 
-// ─── Helper Functions ───────────────────────────────────────────────
-const formatTimeAgo = (date) => {
-  const now = new Date();
-  const postDate = new Date(date);
-  const diffInMinutes = Math.floor((now - postDate) / (1000 * 60));
-  
-  if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
-  if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
-  return `${Math.floor(diffInMinutes / 1440)} days ago`;
+const PostCard = ({ article, size = "md" }) => {
+  const imgHeights = { sm: "h-36", md: "h-48", lg: "h-56" };
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  return (
+    <Link
+      to={`/news/${article.slug}`}
+      className="bg-white rounded-2xl overflow-hidden group hover:shadow-lg
+                 transition-all duration-300 border border-gray-100
+                 hover:border-gray-200 h-full flex flex-col"
+    >
+      <div className="overflow-hidden bg-gray-100 flex-shrink-0">
+        <img
+          src={article.coverImage || getFallbackImage(article.title)}
+          alt={article.title}
+          className={`w-full ${imgHeights[size]} object-cover
+                      group-hover:scale-105 transition-transform duration-500
+                      ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+          onLoad={() => setImageLoaded(true)}
+          onError={(e) => {
+            e.target.src = getFallbackImage(article.title);
+            setImageLoaded(true);
+          }}
+        />
+        {!imageLoaded && (
+          <div className={`w-full ${imgHeights[size]} bg-gradient-to-br
+                          from-gray-100 to-gray-200 animate-pulse`} />
+        )}
+      </div>
+      <div className="p-5 flex flex-col flex-1">
+        <CategoryBadge category={article.category} />
+        <h3 className="text-[#0a0a0a] font-bold text-base leading-snug mt-3
+                       mb-3 line-clamp-2 group-hover:text-[#e63946]
+                       transition-colors flex-1">
+          {article.title}
+        </h3>
+        {article.excerpt && (
+          <p className="text-gray-500 text-sm line-clamp-2 mb-3
+                        leading-relaxed">
+            {article.excerpt}
+          </p>
+        )}
+        <span className="text-gray-400 text-xs font-medium">
+          {formatTimeAgo(article.createdAt)}
+        </span>
+      </div>
+    </Link>
+  );
 };
 
-// ─── Category Filter Bar ─────────────────────────────────────────────
-const categories = ["All", "Campus", "Politics", "Sports", "General"];
+const SidePostCard = ({ article }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
 
-// ─── Main Component ──────────────────────────────────────────────────
+  return (
+    <Link
+      to={`/news/${article.slug}`}
+      className="flex gap-3 bg-white rounded-2xl p-4 group hover:shadow-md
+                 transition-all duration-300 border border-gray-100
+                 hover:border-gray-200"
+    >
+      <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0
+                      bg-gray-100">
+        <img
+          src={article.coverImage || getFallbackImage(article.title)}
+          alt={article.title}
+          className={`w-full h-full object-cover group-hover:scale-105
+                      transition-transform duration-300
+                      ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+          onLoad={() => setImageLoaded(true)}
+          onError={(e) => {
+            e.target.src = getFallbackImage(article.title);
+            setImageLoaded(true);
+          }}
+        />
+        {!imageLoaded && (
+          <div className="w-full h-full bg-gradient-to-br from-gray-100
+                          to-gray-200 animate-pulse" />
+        )}
+      </div>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div>
+          <CategoryBadge category={article.category} />
+          <p className="text-[#0a0a0a] text-sm font-bold leading-tight mt-1.5
+                        line-clamp-2 group-hover:text-[#e63946]
+                        transition-colors">
+            {article.title}
+          </p>
+        </div>
+        <span className="text-gray-400 text-xs font-medium mt-1">
+          {formatTimeAgo(article.createdAt)}
+        </span>
+      </div>
+    </Link>
+  );
+};
+
+const EmptyState = ({ category }) => (
+  <div className="bg-white rounded-2xl border border-gray-100 py-20
+                  text-center">
+    <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center
+                    justify-center mx-auto mb-4">
+      <svg className="w-8 h-8 text-gray-200" fill="none" stroke="currentColor"
+        viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1
+             1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2
+             2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1
+             1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0
+             01-2 2z" />
+      </svg>
+    </div>
+    <p className="text-lg font-semibold text-gray-700 mb-1">
+      No posts in {category} yet
+    </p>
+    <p className="text-sm text-gray-400">
+      Check back soon for updates.
+    </p>
+  </div>
+);
+
+const SkeletonCard = () => (
+  <div className="bg-white rounded-2xl overflow-hidden border border-gray-100
+                  animate-pulse">
+    <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-200" />
+    <div className="p-5 space-y-3">
+      <div className="h-4 w-16 bg-gray-100 rounded-full" />
+      <div className="h-5 bg-gray-100 rounded w-3/4" />
+      <div className="h-4 bg-gray-100 rounded w-1/2" />
+      <div className="h-3 w-20 bg-gray-100 rounded" />
+    </div>
+  </div>
+);
+
+const SkeletonSideCard = () => (
+  <div className="flex gap-3 bg-white rounded-2xl p-4 border border-gray-100
+                  animate-pulse">
+    <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-gray-100
+                    to-gray-200 flex-shrink-0" />
+    <div className="flex-1 space-y-2">
+      <div className="h-4 w-12 bg-gray-100 rounded-full" />
+      <div className="h-4 bg-gray-100 rounded w-full" />
+      <div className="h-3 w-16 bg-gray-100 rounded" />
+    </div>
+  </div>
+);
+
+// ─── Hero Carousel ────────────────────────────────────────────────────
+const HeroCarousel = ({ articles }) => {
+  const [current, setCurrent] = useState(0);
+  const autoplayRef = useRef(null);
+
+  useEffect(() => {
+    if (articles.length < 2) return;
+    autoplayRef.current = setInterval(
+      () => setCurrent((p) => (p + 1) % articles.length),
+      6000
+    );
+    return () => clearInterval(autoplayRef.current);
+  }, [articles.length]);
+
+  if (!articles.length) return null;
+
+  const prev = () => {
+    setCurrent((p) => (p - 1 + articles.length) % articles.length);
+    clearInterval(autoplayRef.current);
+  };
+
+  const next = () => {
+    setCurrent((p) => (p + 1) % articles.length);
+    clearInterval(autoplayRef.current);
+  };
+
+  const goToSlide = (index) => {
+    setCurrent(index);
+    clearInterval(autoplayRef.current);
+  };
+
+  return (
+    <div className="md:col-span-2 relative rounded-2xl overflow-hidden
+                    h-[380px] sm:h-[420px] group">
+      {articles.map((article, i) => (
+        <Link
+          key={article.id}
+          to={`/news/${article.slug}`}
+          className={`absolute inset-0 transition-opacity duration-700
+                      ${i === current ? "opacity-100 z-10" : "opacity-0 z-0"}`}
+        >
+          <img
+            src={article.coverImage || getFallbackImage(article.title)}
+            alt={article.title}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.target.src = getFallbackImage(article.title);
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90
+                          via-black/20 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 z-20">
+            <CategoryBadge category={article.category} />
+            <h1 className="text-white font-black text-xl sm:text-3xl leading-tight
+                           mt-2 sm:mt-3 mb-2 line-clamp-2">
+              {article.title}
+            </h1>
+            <p className="text-white/70 text-xs sm:text-sm line-clamp-1">
+              {formatTimeAgo(article.createdAt)}
+              {article.author?.name && ` • by ${article.author.name}`}
+            </p>
+          </div>
+        </Link>
+      ))}
+
+      {/* Indicators */}
+      <div className="absolute bottom-4 sm:bottom-6 right-4 sm:right-6 flex gap-2
+                      z-30 opacity-0 group-hover:opacity-100 transition-opacity
+                      duration-300">
+        {articles.map((_, i) => (
+          <button
+            key={i}
+            onClick={(e) => {
+              e.preventDefault();
+              goToSlide(i);
+            }}
+            className={`h-2 rounded-full transition-all duration-300
+                        ${
+                          i === current
+                            ? "bg-white w-6 shadow-lg"
+                            : "bg-white/40 w-2 hover:bg-white/60"
+                        }`}
+            aria-label={`Go to slide ${i + 1}`}
+          />
+        ))}
+      </div>
+
+      {/* Prev / Next */}
+      {articles.length > 1 && (
+        <>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              prev();
+            }}
+            className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 z-30
+                       w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur
+                       rounded-full flex items-center justify-center text-white
+                       hover:bg-white/40 transition-all duration-200
+                       opacity-0 group-hover:opacity-100"
+            aria-label="Previous slide"
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none"
+              stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              next();
+            }}
+            className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 z-30
+                       w-9 h-9 sm:w-10 sm:h-10 bg-white/20 backdrop-blur
+                       rounded-full flex items-center justify-center text-white
+                       hover:bg-white/40 transition-all duration-200
+                       opacity-0 group-hover:opacity-100"
+            aria-label="Next slide"
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none"
+              stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Component ───────────────────────────────────────────────────
 const Home = () => {
-  const [activeCategory, setActiveCategory] = useState("All");
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        setLoading(true);
-        const data = await getPosts({ limit: 20 });
-        setPosts(data.posts || []);
-      } catch (err) {
-        setError("Failed to load posts");
-        console.error(err);
-      } finally {
-        setLoading(false);
+  const rawCategory = searchParams.get("category");
+  const activeCategory = rawCategory ? rawCategory.toUpperCase() : "All";
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch home sections
+  const { data: heroData, isLoading: heroLoading } = useQuery({
+    queryKey: ["posts", "hero"],
+    queryFn: () => getPosts({ limit: 5, sort: "latest" }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: trendingData, isLoading: trendingLoading } = useQuery({
+    queryKey: ["posts", "trending"],
+    queryFn: () => getPosts({ limit: 3, sort: "trending" }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: latestData, isLoading: latestLoading } = useQuery({
+    queryKey: ["posts", "latest"],
+    queryFn: () => getPosts({ limit: 6, sort: "latest" }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: weeklyData, isLoading: weeklyLoading } = useQuery({
+    queryKey: ["posts", "weekly"],
+    queryFn: () => getPosts({ limit: 3, sort: "weekly" }),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: categoryData, isLoading: categoryLoading } = useQuery({
+    queryKey: ["posts", "category", activeCategory],
+    queryFn: () =>
+      getPosts({ limit: 12, category: activeCategory, sort: "latest" }),
+    enabled: activeCategory !== "All",
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const sections = {
+    hero: heroData?.posts ?? [],
+    trending: trendingData?.posts ?? [],
+    latest: latestData?.posts?.slice(0, 3) ?? [],
+    featured: latestData?.posts?.[3] ?? null,
+    weekly: weeklyData?.posts ?? [],
+  };
+
+  const categoryPosts = categoryData?.posts ?? [];
+  const sectionsLoading =
+    heroLoading || trendingLoading || latestLoading || weeklyLoading;
+
+  const handleCategoryClick = useCallback(
+    (cat) => {
+      const newParams = new URLSearchParams(searchParams);
+      if (cat === "All") {
+        newParams.delete("category");
+      } else {
+        newParams.set("category", cat.toUpperCase());
       }
-    };
+      setSearchParams(newParams);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [searchParams, setSearchParams]
+  );
 
-    fetchPosts();
-  }, []);
-
-  // Handle URL query parameters
-  useEffect(() => {
-    const category = searchParams.get("category");
-    const sort = searchParams.get("sort");
-
-    if (category) {
-      setActiveCategory(category);
-    } else {
-      setActiveCategory("All");
+  const handleSearch = useCallback(() => {
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
-  }, [searchParams]);
+  }, [searchQuery, navigate]);
 
-  // Filter posts by category
-  const filteredPosts = posts.filter(post => {
-    return activeCategory === "All" || post.category === activeCategory;
-  });
-
-  // Sort posts based on query parameter
-  const sortedPosts = [...filteredPosts].sort((a, b) => {
-    const sort = searchParams.get("sort");
-    if (sort === "trending") {
-      // Sort by views (if available) or just use default
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    } else if (sort === "latest") {
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    } else if (sort === "weekly") {
-      // Filter to last 7 days and sort by date
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const aInWeek = new Date(a.createdAt) >= oneWeekAgo;
-      const bInWeek = new Date(b.createdAt) >= oneWeekAgo;
-      if (aInWeek && !bInWeek) return -1;
-      if (!aInWeek && bInWeek) return 1;
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    }
-    return new Date(b.createdAt) - new Date(a.createdAt);
-  });
-
-  // Extract sections from posts
-  const heroArticle = sortedPosts[0] || null;
-  const sideArticles = sortedPosts.slice(1, 4);
-  const trendingArticles = sortedPosts.slice(4, 7);
-  const latestArticles = sortedPosts.slice(7, 10);
-  const featuredArticle = sortedPosts[10] || null;
-  const weeklyHighlights = sortedPosts.slice(11, 14);
-
-  if (loading) {
+  // ── Loading ─────────────────────────────────────────────────────
+  if (sectionsLoading && !heroData) {
     return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] flex items-center
+                      justify-center p-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#e63946] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading news...</p>
+          <div className="w-12 h-12 border-2 border-gray-200 border-t-[#e63946]
+                          rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-500 text-sm font-medium">
+            Loading latest news...
+          </p>
         </div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-[#f5f5f5] flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
-            className="px-4 py-2 bg-[#e63946] text-white rounded-lg hover:bg-red-700"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const isFiltered = activeCategory !== "All";
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5]">
-
-      {/* ── Hero Section ─────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-8 pb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-          {/* Main hero card */}
-          {heroArticle && (
-            <Link to={`/news/${heroArticle.slug}`} className="md:col-span-2 relative rounded-2xl overflow-hidden group cursor-pointer">
-              <img
-                src={heroArticle.coverImage}
-                alt={heroArticle.title}
-                className="w-full h-[420px] object-cover group-hover:scale-105 transition-transform duration-700"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <CategoryBadge category={heroArticle.category} />
-                <h1 className="text-white font-black text-2xl md:text-3xl leading-tight mt-2 mb-3">
-                  {heroArticle.title}
-                </h1>
-                <span className="text-white/50 text-xs">{formatTimeAgo(heroArticle.createdAt)}</span>
-              </div>
-            </Link>
-          )}
-
-          {/* Side articles */}
-          <div className="flex flex-col gap-3">
-            {sideArticles.map((article) => (
-              <Link
-                key={article.id}
-                to={`/news/${article.slug}`}
-                className="flex gap-3 bg-white rounded-xl p-3 group cursor-pointer hover:shadow-md transition-shadow"
-              >
-                <img
-                  src={article.coverImage}
-                  alt={article.title}
-                  className="w-20 h-20 rounded-lg object-cover shrink-0 group-hover:scale-105 transition-transform duration-300"
-                />
-                <div className="flex-1 min-w-0">
-                  <CategoryBadge category={article.category} />
-                  <p className="text-[#0a0a0a] text-sm font-bold leading-tight mt-1 line-clamp-2">
-                    {article.title}
-                  </p>
-                  <span className="text-[#9ca3af] text-xs mt-1 block">{formatTimeAgo(article.createdAt)}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Category Filter ───────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-2">
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => {
-                setActiveCategory(cat);
-                if (cat === "All") {
-                  searchParams.delete("category");
-                } else {
-                  searchParams.set("category", cat);
-                }
-                setSearchParams(searchParams);
-              }}
-              className={`shrink-0 px-5 py-2 rounded-full text-sm font-semibold transition-all ${
-                activeCategory === cat
-                  ? "bg-[#0a0a0a] text-white"
-                  : "bg-white text-[#6b7280] hover:bg-gray-100 border border-[#e5e7eb]"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Trending News ─────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <SectionHeader title="Trending News" href="/?sort=trending" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {trendingArticles.map((article) => (
-            <Link
-              key={article.id}
-              to={`/news/${article.slug}`}
-              className="bg-white rounded-2xl overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
-            >
-              <div className="overflow-hidden">
-                <img
-                  src={article.coverImage}
-                  alt={article.title}
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-              <div className="p-4">
-                <CategoryBadge category={article.category} />
-                <h3 className="text-[#0a0a0a] font-bold text-sm leading-snug mt-2 mb-3 line-clamp-2">
-                  {article.title}
-                </h3>
-                <div className="flex items-center gap-1.5 text-[#9ca3af] text-xs">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {formatTimeAgo(article.createdAt)}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Breaking Banner ───────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-        <div
-          className="rounded-3xl p-10 md:p-14 text-center relative overflow-hidden"
-          style={{
-            background: "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)",
-          }}
-        >
-          <div className="absolute inset-0 opacity-5">
-            <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-[#e63946] blur-3xl" />
-            <div className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full bg-[#0a2463] blur-3xl" />
-          </div>
-          <div className="relative z-10">
-            <p className="text-white/40 text-xs font-bold tracking-widest uppercase mb-3">
-              Delivering Real-Time Updates and the Latest Headlines Daily
-            </p>
-            <h2 className="text-white font-black text-3xl md:text-5xl leading-tight mb-2">
-              LATEST UPDATES ON
-            </h2>
-            <h2 className="text-[#e63946] font-black text-3xl md:text-5xl leading-tight mb-8">
-              LASU CAMPUS NEWS
-            </h2>
-            <div className="flex items-center max-w-md mx-auto bg-white/10 backdrop-blur rounded-full px-5 py-3.5 border border-white/20 focus-within:border-white/40 transition-colors">
-              <input
-                type="text"
-                placeholder="Find the topic you want now!"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && searchQuery.trim()) {
-                    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-                  }
-                }}
-                className="flex-1 bg-transparent text-white text-sm placeholder:text-white/30 focus:outline-none"
-              />
-              <button 
-                onClick={() => {
-                  if (searchQuery.trim()) {
-                    navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-                  }
-                }}
-                className="text-white/50 hover:text-white transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Latest News ───────────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <SectionHeader title="Latest News" href="/news?sort=latest" />
-
-        {/* Top 3 image cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 mb-6">
-          {latestArticles.map((article) => (
-            <Link
-              key={article.id}
-              to={`/news/${article.slug}`}
-              className="bg-white rounded-2xl overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
-            >
-              <div className="overflow-hidden">
-                <img
-                  src={article.coverImage}
-                  alt={article.title}
-                  className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-              <div className="p-4">
-                <CategoryBadge category={article.category} />
-                <h3 className="text-[#0a0a0a] font-bold text-sm leading-snug mt-2 mb-3 line-clamp-2">
-                  {article.title}
-                </h3>
-                <div className="flex items-center gap-1.5 text-[#9ca3af] text-xs">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {formatTimeAgo(article.createdAt)}
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        {/* Featured wide card */}
-        {featuredArticle && (
-          <Link to={`/news/${featuredArticle.slug}`} className="bg-white rounded-2xl overflow-hidden flex flex-col md:flex-row group cursor-pointer hover:shadow-lg transition-shadow">
-            <div className="md:w-2/5 overflow-hidden">
-              <img
-                src={featuredArticle.coverImage}
-                alt={featuredArticle.title}
-                className="w-full h-64 md:h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            </div>
-            <div className="flex-1 p-8 flex flex-col justify-center">
-              <div>
-                <CategoryBadge category={featuredArticle.category} />
-              </div>
-              <h2 className="text-[#0a0a0a] font-black text-2xl md:text-3xl leading-tight mt-3 mb-4">
-                {featuredArticle.title}
-              </h2>
-              <p className="text-[#6b7280] text-sm leading-relaxed line-clamp-4">
-                {featuredArticle.excerpt}
-              </p>
-              <div className="flex items-center gap-1.5 text-[#9ca3af] text-xs mt-5">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {formatTimeAgo(featuredArticle.createdAt)}
-              </div>
-            </div>
-          </Link>
-        )}
-      </section>
-
-      {/* ── Weekly Highlights ─────────────────────────────────────── */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <SectionHeader title="Weekly Highlights" href="/news?sort=weekly" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {weeklyHighlights.map((article) => (
-            <Link
-              key={article.id}
-              to={`/news/${article.slug}`}
-              className="bg-white rounded-2xl overflow-hidden group cursor-pointer hover:shadow-lg transition-shadow"
-            >
-              <div className="overflow-hidden">
-                <img
-                  src={article.coverImage}
-                  alt={article.title}
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-              <div className="p-4">
-                <CategoryBadge category={article.category} />
-                <h3 className="text-[#0a0a0a] font-bold text-sm leading-snug mt-2 line-clamp-2">
-                  {article.title}
-                </h3>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Footer ───────────────────────────────────────────────── */}
-      <footer className="bg-[#0a0a0a] text-white mt-12">
-        <div className="max-w-7xl mx-auto px-6 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
-            {/* Brand */}
-            <div className="md:col-span-1">
-              <div className="flex items-center gap-1 mb-4">
-                <span className="font-black text-2xl tracking-tighter">LASU</span>
-                <span className="text-[#e63946] font-black text-2xl tracking-tighter">.NEWS</span>
-              </div>
-              <p className="text-white/40 text-sm leading-relaxed mb-6">
-                Stay Informed. Stay Ahead with Breaking News and In-Depth Coverage.
-              </p>
-              <div className="flex items-center gap-3">
-                {["twitter", "facebook", "instagram", "linkedin"].map((s) => (
-                  <button
-                    key={s}
-                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                  >
-                    <span className="sr-only">{s}</span>
-                    <div className="w-3.5 h-3.5 bg-white/60 rounded-sm" />
-                  </button>
+    <div className="min-h-screen bg-[#f8fafc]">
+      {/* ── Hero ────────────────────────────────────────────────── */}
+      {!isFiltered && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 sm:pt-8
+                            pb-6 sm:pb-8">
+          {heroLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2 h-[380px] sm:h-[420px]
+                              bg-white rounded-2xl border border-gray-100
+                              animate-pulse" />
+              <div className="flex flex-col gap-3">
+                {[...Array(3)].map((_, i) => (
+                  <SkeletonSideCard key={i} />
                 ))}
               </div>
             </div>
-
-            {/* Links */}
-            {[
-              {
-                title: "Contact",
-                links: ["Email", "Phone", "Address", "Call center"],
-              },
-              {
-                title: "Categories",
-                links: ["Campus", "Politics", "Sports", "General"],
-              },
-              {
-                title: "Follow Us",
-                links: ["Facebook", "Instagram", "Pinterest", "Twitter"],
-              },
-            ].map((col) => (
-              <div key={col.title}>
-                <h4 className="font-bold text-sm mb-4 tracking-wide">{col.title}</h4>
-                <ul className="space-y-2.5">
-                  {col.links.map((link) => (
-                    <li key={link}>
-                      <span className="text-white/40 hover:text-white text-sm cursor-pointer transition-colors">
-                        {link}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <HeroCarousel articles={sections.hero} />
+              <div className="flex flex-col gap-3">
+                {sections.hero.slice(0, 3).map((article) => (
+                  <SidePostCard key={article.id} article={article} />
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ── Category Filter (Sticky) ──────────────────────────────── */}
+      <section className="sticky top-0 z-40 bg-[#f8fafc]/95 backdrop-blur-sm
+                          border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+          <div className="flex items-center gap-2 overflow-x-auto
+                          scrollbar-hide">
+            {CATEGORIES.map((cat) => {
+              const value = cat === "All" ? "All" : cat.toUpperCase();
+              const isActive = activeCategory === value;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => handleCategoryClick(cat)}
+                  className={`shrink-0 px-4 py-2 rounded-full text-sm
+                              font-semibold transition-all duration-200
+                              ${
+                                isActive
+                                  ? "bg-[#0a0a0a] text-white shadow-sm"
+                                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+                              }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Category View ────────────────────────────────────────── */}
+      {isFiltered ? (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+          <h2 className="text-2xl sm:text-3xl font-black text-[#0a0a0a]
+                         tracking-tight mb-6 sm:mb-8">
+            {activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase()}
+            {" "}News
+          </h2>
+
+          {categoryLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3
+                            gap-6">
+              {[...Array(6)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
+            </div>
+          ) : categoryPosts.length === 0 ? (
+            <EmptyState category={activeCategory} />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3
+                            gap-6">
+              {categoryPosts.map((article) => (
+                <PostCard key={article.id} article={article} />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : (
+        <>
+          {/* ── Trending ──────────────────────────────────────────── */}
+          {sections.trending.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8
+                                sm:py-12">
+              <SectionHeader title="Trending Now" href="/news?sort=trending" />
+              {trendingLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2
+                                md:grid-cols-3 gap-6">
+                  {[...Array(3)].map((_, i) => (
+                    <SkeletonCard key={i} />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2
+                                md:grid-cols-3 gap-6">
+                  {sections.trending.map((a) => (
+                    <PostCard key={a.id} article={a} />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* ── Latest ────────────────────────────────────────────── */}
+          {sections.latest.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8
+                                sm:py-12">
+              <SectionHeader title="Latest News" href="/news?sort=latest" />
+              {latestLoading ? (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2
+                                  md:grid-cols-3 gap-6 mb-8">
+                    {[...Array(3)].map((_, i) => (
+                      <SkeletonCard key={i} />
+                    ))}
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-100
+                                  h-64 md:h-80 animate-pulse" />
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2
+                                  md:grid-cols-3 gap-6 mb-8">
+                    {sections.latest.map((a) => (
+                      <PostCard key={a.id} article={a} />
+                    ))}
+                  </div>
+
+                  {/* Featured post */}
+                  {sections.featured && (
+                    <Link
+                      to={`/news/${sections.featured.slug}`}
+                      className="bg-white rounded-2xl overflow-hidden flex
+                                 flex-col md:flex-row group hover:shadow-lg
+                                 transition-all duration-300 border
+                                 border-gray-100 hover:border-gray-200"
+                    >
+                      <div className="md:w-2/5 overflow-hidden bg-gray-100
+                                      flex-shrink-0">
+                        <img
+                          src={
+                            sections.featured.coverImage ||
+                            getFallbackImage(sections.featured.title)
+                          }
+                          alt={sections.featured.title}
+                          className="w-full h-64 md:h-full object-cover
+                                     group-hover:scale-105 transition-transform
+                                     duration-500"
+                          onError={(e) => {
+                            e.target.src = getFallbackImage(
+                              sections.featured.title
+                            );
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1 p-6 sm:p-8 flex flex-col
+                                      justify-center">
+                        <CategoryBadge
+                          category={sections.featured.category}
+                        />
+                        <h2 className="text-[#0a0a0a] font-black text-2xl
+                                       sm:text-3xl leading-tight mt-4 mb-4
+                                       group-hover:text-[#e63946]
+                                       transition-colors">
+                          {sections.featured.title}
+                        </h2>
+                        <p className="text-gray-600 text-sm sm:text-base
+                                      leading-relaxed line-clamp-3 mb-6">
+                          {sections.featured.excerpt}
+                        </p>
+                        <span className="text-gray-400 text-xs font-medium">
+                          {formatTimeAgo(sections.featured.createdAt)}
+                          {sections.featured.author?.name &&
+                            ` • by ${sections.featured.author.name}`}
+                        </span>
+                      </div>
+                    </Link>
+                  )}
+                </>
+              )}
+            </section>
+          )}
+
+          {/* ── Weekly Highlights ─────────────────────────────────── */}
+          {sections.weekly.length > 0 && (
+            <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8
+                                sm:py-12">
+              <SectionHeader
+                title="Weekly Highlights"
+                href="/news?sort=weekly"
+              />
+              {weeklyLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2
+                                md:grid-cols-3 gap-6">
+                  {[...Array(3)].map((_, i) => (
+                    <SkeletonCard key={i} />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2
+                                md:grid-cols-3 gap-6">
+                  {sections.weekly.map((a) => (
+                    <PostCard key={a.id} article={a} />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+        </>
+      )}
+
+      {/* ── Search CTA Banner ─────────────────────────────────────── */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div
+          className="rounded-3xl p-8 sm:p-12 lg:p-16 text-center relative
+                     overflow-hidden group"
+          style={{
+            background:
+              "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%)",
+          }}
+        >
+          {/* Animated gradient orbs */}
+          <div className="absolute inset-0 opacity-5 pointer-events-none
+                          overflow-hidden">
+            <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full
+                            bg-[#e63946] blur-3xl group-hover:blur-2xl
+                            transition-all duration-500" />
+            <div className="absolute bottom-0 right-1/4 w-96 h-96
+                            rounded-full bg-blue-600 blur-3xl
+                            group-hover:blur-2xl transition-all duration-500" />
           </div>
 
-          <div className="border-t border-white/10 mt-10 pt-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <p className="text-white/30 text-xs">
-              All rights reserved © {new Date().getFullYear()} LASU News
+          <div className="relative z-10">
+            <p className="text-white/40 text-[11px] font-bold tracking-widest
+                          uppercase mb-4">
+              Stay Connected · Never Miss A Story
             </p>
-            <div className="flex items-center gap-6 text-white/30 text-xs">
-              <span>📞 +1 234-567-890</span>
-              <span>📍 Lagos State, Nigeria</span>
+            <h2 className="text-white font-black text-3xl sm:text-4xl
+                           lg:text-5xl leading-tight mb-2">
+              DISCOVER THE LATEST
+            </h2>
+            <h3 className="text-[#e63946] font-black text-3xl sm:text-4xl
+                           lg:text-5xl leading-tight mb-8">
+              LASU CAMPUS NEWS
+            </h3>
+
+            {/* Search input */}
+            <div className="flex flex-col sm:flex-row items-center gap-3
+                            max-w-2xl mx-auto">
+              <div className="w-full flex items-center bg-white/10
+                              backdrop-blur rounded-full px-5 py-3.5
+                              border border-white/20
+                              focus-within:border-white/40
+                              transition-colors duration-200">
+                <svg className="w-5 h-5 text-white/40 flex-shrink-0"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search articles, topics, news..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  className="flex-1 bg-transparent text-white text-sm
+                             placeholder:text-white/30 focus:outline-none
+                             ml-3"
+                />
+                <button
+                  onClick={handleSearch}
+                  className="text-white/50 hover:text-white transition-colors
+                             ml-2 flex-shrink-0"
+                  aria-label="Search"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor"
+                    viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
             </div>
+
+            {/* Help text */}
+            <p className="text-white/30 text-xs mt-4">
+              Press Enter or click the search button to explore
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ────────────────────────────────────────────────── */}
+      <footer className="bg-[#0a0a0a] text-white mt-12 border-t
+                         border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8
+                          sm:gap-10 mb-10 sm:mb-12">
+            {/* Brand */}
+            <div>
+              <div className="flex items-center gap-1 mb-4">
+                <span className="font-black text-2xl tracking-tighter
+                                 text-white">
+                  LASU
+                </span>
+                <span className="text-[#e63946] font-black text-2xl
+                                 tracking-tighter">
+                  .NEWS
+                </span>
+              </div>
+              <p className="text-white/40 text-sm leading-relaxed mb-6">
+                Your trusted source for breaking news and in-depth coverage
+                of LASU campus events and announcements.
+              </p>
+              <div className="flex gap-3">
+                {["facebook", "instagram", "twitter", "linkedin"].map(
+                  (platform) => (
+                    <a
+                      key={platform}
+                      href={`https://${platform}.com`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={platform}
+                      className="w-9 h-9 rounded-full bg-white/10
+                                 hover:bg-white/20 flex items-center
+                                 justify-center transition-all duration-200
+                                 text-white/60 hover:text-white"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Contact */}
+            <div>
+              <h4 className="font-bold text-sm mb-4 tracking-wide uppercase
+                             text-white">
+                Contact
+              </h4>
+              <ul className="space-y-3">
+                <li>
+                  <a
+                    href="mailto:info@lasu.edu.ng"
+                    className="text-white/40 hover:text-white text-sm
+                               transition-colors flex items-center gap-2
+                               group"
+                  >
+                    <Mail className="w-4 h-4 flex-shrink-0
+                                     group-hover:scale-110 transition-transform" />
+                    info@lasu.edu.ng
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="tel:+2341234567890"
+                    className="text-white/40 hover:text-white text-sm
+                               transition-colors flex items-center gap-2
+                               group"
+                  >
+                    <Phone className="w-4 h-4 flex-shrink-0
+                                      group-hover:scale-110 transition-transform" />
+                    +234 123 456 7890
+                  </a>
+                </li>
+                <li className="text-white/40 text-sm flex items-center gap-2">
+                  <MapPin className="w-4 h-4 flex-shrink-0" />
+                  Lagos State, Nigeria
+                </li>
+              </ul>
+            </div>
+
+            {/* Categories */}
+            <div>
+              <h4 className="font-bold text-sm mb-4 tracking-wide uppercase
+                             text-white">
+                Categories
+              </h4>
+              <ul className="space-y-2.5">
+                {["UPDATES", "EVENTS", "SPOTLIGHT", "TRENDING"].map((cat) => (
+                  <li key={cat}>
+                    <Link
+                      to={`/?category=${cat}`}
+                      className="text-white/40 hover:text-white text-sm
+                                 transition-colors flex items-center gap-2
+                                 group"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full
+                                       bg-[#e63946] group-hover:scale-125
+                                       transition-transform" />
+                      {cat.charAt(0) + cat.slice(1).toLowerCase()}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="font-bold text-sm mb-4 tracking-wide uppercase
+                             text-white">
+                Quick Links
+              </h4>
+              <ul className="space-y-2.5">
+                {[
+                  { label: "All News", href: "/news" },
+                  { label: "Search", href: "/search" },
+                  { label: "Home", href: "/" },
+                ].map(({ label, href }) => (
+                  <li key={label}>
+                    <Link
+                      to={href}
+                      className="text-white/40 hover:text-white text-sm
+                                 transition-colors flex items-center gap-2
+                                 group"
+                    >
+                      <span className="w-1 h-1 rounded-full
+                                       bg-white/20 group-hover:bg-[#e63946]
+                                       transition-colors" />
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-white/10 my-8" />
+
+          {/* Copyright */}
+          <div className="flex flex-col sm:flex-row items-center
+                          justify-between gap-4 text-white/30 text-xs">
+            <p>
+              © {new Date().getFullYear()} LASU News · All rights reserved
+            </p>
+            <p>
+              Crafted with{" "}
+              <span className="text-[#e63946]">
+                ❤
+              </span>{" "}
+              for the LASU community
+            </p>
           </div>
         </div>
       </footer>

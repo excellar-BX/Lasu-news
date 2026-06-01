@@ -2,10 +2,12 @@ import AdminSidebar from "./AdminSidebar";
 
 const AdminLayout = ({ children }) => {
   return (
-    <div className="flex">
+    <div className="min-h-screen bg-background">
       <AdminSidebar />
-      <main className="flex-1 ml-64 p-8 bg-[#f5f5f5] min-h-screen">
-        {children}
+      <main className="admin-content">
+        <div className="p-4 sm:p-6 lg:p-8">
+          {children}
+        </div>
       </main>
     </div>
   );

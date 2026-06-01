@@ -2,10 +2,12 @@ const prisma = require("../utils/prisma");
 const { slugify } = require("../utils/slugify");
 
 // GET /api/posts — public, paginated, published only
+// Query params: page, limit, category, sort (latest | trending | weekly)
 const getAllPosts = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const category = req.query.category || undefined;
+  const sort = req.query.sort || "latest";
   const skip = (page - 1) * limit;
 
   try {
@@ -14,12 +16,24 @@ const getAllPosts = async (req, res) => {
       ...(category && { category }),
     };
 
+    // Weekly filter: only posts from the last 7 days
+    if (sort === "weekly") {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      where.createdAt = { gte: sevenDaysAgo };
+    }
+
+    // Order by: trending = views desc, everything else = createdAt desc
+    const orderBy = sort === "trending"
+      ? { views: "desc" }
+      : { createdAt: "desc" };
+
     const [posts, total] = await Promise.all([
       prisma.post.findMany({
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         select: {
           id: true,
           title: true,
@@ -28,6 +42,7 @@ const getAllPosts = async (req, res) => {
           coverImage: true,
           category: true,
           published: true,
+          views: true,
           createdAt: true,
           author: {
             select: { id: true, name: true },
@@ -72,6 +87,7 @@ const getAllPostsAdmin = async (req, res) => {
           coverImage: true,
           category: true,
           published: true,
+          views: true,
           createdAt: true,
           updatedAt: true,
           author: {
@@ -98,11 +114,13 @@ const getAllPostsAdmin = async (req, res) => {
   }
 };
 
-// GET /api/posts/:slug — public, single post with comments
+// GET /api/posts/slug/:slug — public, single post with comments
+// Also increments view count
 const getPostBySlug = async (req, res) => {
   const { slug } = req.params;
 
   try {
+    // First check the post exists and is published
     const post = await prisma.post.findUnique({
       where: { slug },
       include: {
@@ -119,6 +137,13 @@ const getPostBySlug = async (req, res) => {
     if (!post || !post.published) {
       return res.status(404).json({ message: "Post not found" });
     }
+
+    // Increment views after confirming post exists — fire and forget,
+    // don't await so it doesn't slow down the response
+    prisma.post.update({
+      where: { slug },
+      data: { views: { increment: 1 } },
+    }).catch((err) => console.error("Failed to increment views:", err));
 
     return res.status(200).json({ post });
   } catch (err) {
@@ -161,7 +186,6 @@ const createPost = async (req, res) => {
   try {
     let slug = slugify(title);
 
-    // Ensure slug is unique
     const existing = await prisma.post.findUnique({ where: { slug } });
     if (existing) {
       slug = `${slug}-${Date.now()}`;
@@ -198,7 +222,6 @@ const updatePost = async (req, res) => {
       return res.status(404).json({ message: "Post not found" });
     }
 
-    // Only regenerate slug if title changed
     let slug = existing.slug;
     if (title && title !== existing.title) {
       slug = slugify(title);

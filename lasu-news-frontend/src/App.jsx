@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
@@ -16,13 +17,24 @@ import AdminPostList from "./pages/admin/PostList";
 import AdminPostEditor from "./pages/admin/PostEditor";
 import AdminComments from "./pages/admin/Comments";
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      cacheTime: 10 * 60 * 1000, // 10 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 const App = () => {
   return (
-    <HelmetProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Navbar />
-          <Routes>
+    <QueryClientProvider client={queryClient}>
+      <HelmetProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <Navbar />
+            <Routes>
             {/* Public */}
             <Route path="/" element={<Home />} />
             <Route path="/news" element={<AllNews />} />
@@ -86,6 +98,7 @@ const App = () => {
         </BrowserRouter>
       </AuthProvider>
     </HelmetProvider>
+    </QueryClientProvider>
   );
 };
 

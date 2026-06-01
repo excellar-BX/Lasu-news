@@ -4,29 +4,29 @@
   /* =========================
      PRIMARY BRAND COLORS
   ========================== */
-  --color-primary: #0f172a;         /* Deep navy */
-  --color-primary-dark: #020617;    /* Rich dark background */
-  --color-primary-light: #1e293b;   /* Hover / cards */
+  --color-primary: #0f172a;
+  --color-primary-dark: #020617;
+  --color-primary-light: #1e293b;
 
   /* =========================
      ACCENT COLORS
   ========================== */
-  --color-accent: #f97316;          /* Vibrant orange */
-  --color-accent-dark: #ea580c;     /* Dark orange hover */
+  --color-accent: #f97316;
+  --color-accent-dark: #ea580c;
 
   /* =========================
      BACKGROUND & SURFACES
   ========================== */
-  --color-background: #f8fafc;      /* Clean light background */
-  --color-surface: #ffffff;         /* Cards / sections */
-  --color-surface-dark: #111827;    /* Dark footer/navbar */
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-dark: #111827;
 
   /* =========================
      TEXT COLORS
   ========================== */
-  --color-text: #111827;            /* Main text */
-  --color-text-light: #f9fafb;      /* White text */
-  --color-muted: #6b7280;           /* Secondary text */
+  --color-text: #111827;
+  --color-text-light: #f9fafb;
+  --color-muted: #6b7280;
 
   /* =========================
      BORDERS & DIVIDERS
@@ -51,16 +51,21 @@
   --color-campus: #14b8a6;
 
   /* =========================
-     EFFECTS
+     SHADOWS
   ========================== */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 8px 20px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 15px 35px rgba(0, 0, 0, 0.12);
 
   /* =========================
-     ANIMATIONS
+     ANIMATIONS — define here for Tailwind v4
   ========================== */
   --animate-marquee: marquee 30s linear infinite;
+  --animate-spin: spin 1s linear infinite;
+  --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-fade-in: fadeIn 150ms ease both;
+  --animate-slide-in-left: slideInLeft 220ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  --animate-slide-in-up: slideInUp 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 
   /* =========================
      TYPOGRAPHY
@@ -68,6 +73,9 @@
   --font-sans: "Montserrat", sans-serif;
 }
 
+/* =============================================
+   BASE RESETS
+   ============================================= */
 * {
   box-sizing: border-box;
 }
@@ -88,21 +96,101 @@ a {
   color: inherit;
 }
 
-/* ── Custom Marquee Animation ── */
+/* =============================================
+   KEYFRAMES
+   ============================================= */
+
+/* Marquee (ticker) */
 @keyframes marquee {
-  0% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 }
 
-/* ── Scrollbar Hide Utility (used in category filter) ── */
+/* Fade in — used by error banners, modals */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Slide in from left — used by mobile sidebar drawer */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+/* Slide in from bottom — used by modal / toasts */
+@keyframes slideInUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Spin — used by loading spinners */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Pulse — used by skeleton loaders & live indicators */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+/* =============================================
+   TAILWIND v4 CUSTOM UTILITIES
+   (anything not covered by the theme block)
+   ============================================= */
+
+/* Animation utility classes referenced in components */
+@utility animate-fade-in {
+  animation: var(--animate-fade-in);
+}
+
+@utility animate-slide-in-left {
+  animation: var(--animate-slide-in-left);
+}
+
+@utility animate-slide-in-up {
+  animation: var(--animate-slide-in-up);
+}
+
+@utility animate-marquee {
+  animation: var(--animate-marquee);
+}
+
+/* =============================================
+   SCROLLBAR UTILITIES
+   ============================================= */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* =============================================
+   ADMIN LAYOUT HELPERS
+   ============================================= */
+
+/* 
+  The admin sidebar is 256px (w-64).
+  The main content needs this offset on desktop.
+  Used on the admin layout wrapper.
+*/
+.admin-content {
+  padding-top: 0;
+}
+
+@media (min-width: 1024px) {
+  .admin-content {
+    margin-left: 256px; /* matches w-64 = 16rem = 256px */
+  }
+}
+
+/* On mobile, the fixed top bar is 56px (h-14) */
+@media (max-width: 1023px) {
+  .admin-content {
+    padding-top: 56px; /* matches h-14 */
+  }
 }

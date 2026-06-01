@@ -1,11 +1,11 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "postgresql"
 }
+
 model User {
   id             String         @id @default(uuid())
   email          String         @unique
@@ -27,7 +27,8 @@ model Post {
   excerpt     String
   coverImage  String?
   published   Boolean   @default(false)
-  category    String
+  category    Category
+  views       Int       @default(0) 
   author      User      @relation(fields: [authorId], references: [id])
   authorId    String
   createdAt   DateTime  @default(now())
@@ -46,7 +47,7 @@ model Comment {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String   @id @default(uuid()) 
   token     String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
@@ -57,4 +58,12 @@ model RefreshToken {
 enum Role {
   ADMIN
   READER
+}
+
+enum Category {
+  UPDATES
+  TRENDING
+  OPPORTUNITIES
+  SPOTLIGHT
+  EVENTS
 }
