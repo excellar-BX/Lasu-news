@@ -301,17 +301,18 @@ const Navbar = () => {
               <>
                 <Link
                   to="/login"
-                  className="text-white/70 hover:text-white transition-colors
+                  className="text-white/70 border
+                         border-white/10 hover:text-white transition-colors
                              px-3 py-2 text-xs whitespace-nowrap"
                 >
                   Login
                 </Link>
                 <Link
                   to="/signup"
-                  className="bg-white text-[#0a0a0a] hover:bg-white/90
-                             font-bold px-4 xl:px-5 py-2 rounded-full
-                             transition-colors text-xs tracking-wide shadow-sm
-                             whitespace-nowrap"
+                  className="bg-[#e63946] hover:bg-red-700 text-white
+                               px-3 xl:px-4 py-2 rounded-full transition-colors
+                               text-xs font-bold tracking-wide
+                               shadow-sm shadow-red-900/30 whitespace-nowrap"
                 >
                   Sign Up
                 </Link>
@@ -461,9 +462,9 @@ const Navbar = () => {
                     <Link
                       to="/signup"
                       onClick={() => setMenuOpen(false)}
-                      className="block bg-white text-[#0a0a0a] text-center
-                                 py-2.5 rounded-xl text-sm font-bold
-                                 hover:bg-white/90 transition-colors"
+                      className="block bg-[#e63946] text-white text-center
+                                   py-2.5 rounded-xl text-sm font-bold
+                                   hover:bg-red-700 transition-colors"
                     >
                       Sign Up
                     </Link>
