@@ -5,6 +5,7 @@ const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/auth.routes");
 const postRoutes = require("./routes/post.routes");
 const commentRoutes = require("./routes/comment.route");
+const breakingNewsRoutes = require("./routes/breakingNews.routes");
 const morgan = require('morgan')
 
 
@@ -39,6 +40,7 @@ app.use(morgan('dev'))
 app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
+app.use("/api/breaking-news", breakingNewsRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getPosts } from "../api/posts";
+import BreakingNews from "./BreakingNews";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -717,25 +718,7 @@ const Navbar = () => {
       )}
 
       {/* ── Breaking News Ticker ── */}
-      <div className="bg-[#e63946] text-white text-xs py-1.5 overflow-hidden">
-        <div className="flex items-center">
-          <span className="shrink-0 bg-white text-[#e63946] font-black
-                           text-[10px] px-3 py-0.5 mr-4 uppercase
-                           tracking-wider">
-            Breaking
-          </span>
-          <div className="overflow-hidden flex-1">
-            <div className="animate-marquee whitespace-nowrap">
-              Stay ahead with the latest campus updates, breaking news, and
-              stories that matter — LASU News, your campus voice.&nbsp;&nbsp;
-              ●&nbsp;&nbsp; New academic calendar released for 2024/2025
-              session.&nbsp;&nbsp; ●&nbsp;&nbsp; LASU students excel at
-              national debate championship.&nbsp;&nbsp; ●&nbsp;&nbsp; Campus
-              shuttle service expanded to more routes.
-            </div>
-          </div>
-        </div>
-      </div>
+      <BreakingNews />
     </header>
   );
 };

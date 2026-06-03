@@ -178,26 +178,16 @@ const me = async (req, res) => {
 
 // PUT /api/auth/profile
 const updateProfile = async (req, res) => {
-  const { name, email } = req.body;
+  const { name } = req.body;
 
-  if (!name && !email) {
-    return res.status(400).json({ message: "At least one field is required" });
+  if (!name) {
+    return res.status(400).json({ message: "Name is required" });
   }
 
   try {
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (email) {
-      const existingUser = await prisma.user.findUnique({ where: { email } });
-      if (existingUser && existingUser.id !== req.user.id) {
-        return res.status(409).json({ message: "Email already in use" });
-      }
-      updateData.email = email;
-    }
-
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: updateData,
+      data: { name },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });
 

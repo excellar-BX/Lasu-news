@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/admin/Dashboard";
 import AdminPostList from "./pages/admin/PostList";
 import AdminPostEditor from "./pages/admin/PostEditor";
 import AdminComments from "./pages/admin/Comments";
+import AdminBreakingNews from "./pages/admin/BreakingNews";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -163,6 +164,16 @@ const App = () => {
                 <AdminRoute>
                   <AdminLayout>
                     <AdminComments />
+                  </AdminLayout>
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/breaking-news"
+              element={
+                <AdminRoute>
+                  <AdminLayout>
+                    <AdminBreakingNews />
                   </AdminLayout>
                 </AdminRoute>
               }

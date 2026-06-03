@@ -43,8 +43,8 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const updateProfile = async (name, email) => {
-    const { data } = await api.put("/auth/profile", { name, email });
+  const updateProfile = async (name) => {
+    const { data } = await api.put("/auth/profile", { name });
     setUser(data.user);
     return data.user;
   };

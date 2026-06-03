@@ -7,7 +7,6 @@ const Profile = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: user?.name || "",
-    email: user?.email || "",
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
@@ -22,7 +21,7 @@ const Profile = () => {
     setMessage({ type: "", text: "" });
 
     try {
-      await updateProfile(formData.name, formData.email);
+      await updateProfile(formData.name);
       setMessage({ type: "success", text: "Profile updated successfully!" });
     } catch (err) {
       setMessage({
@@ -81,26 +80,6 @@ const Profile = () => {
                   required
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e63946] focus:border-transparent outline-none transition-all"
                   placeholder="Enter your full name"
-                />
-              </div>
-
-              {/* Email Field */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#e63946] focus:border-transparent outline-none transition-all"
-                  placeholder="Enter your email"
                 />
               </div>
 
