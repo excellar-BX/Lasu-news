@@ -1,17 +1,127 @@
+import { useState, useRef, useEffect } from 'react';
+
 const WhatsAppFab = () => {
   const whatsappNumber = "2348130827166";
   const whatsappUrl = `https://wa.me/${whatsappNumber}`;
+  
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const fabRef = useRef(null);
+
+  useEffect(() => {
+    const fab = fabRef.current;
+    if (fab) {
+      const rect = fab.getBoundingClientRect();
+      setPosition({ x: rect.left, y: rect.top });
+    }
+  }, []);
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handleMouseUp = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    const windowWidth = window.innerWidth;
+    const fabWidth = 56;
+    const midPoint = windowWidth / 2;
+    
+    const snappedX = position.x < midPoint ? 24 : windowWidth - fabWidth - 24;
+    
+    setPosition({ x: snappedX, y: position.y });
+  };
+
+  const handleTouchStart = (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    setIsDragging(true);
+    setDragStart({
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y
+    });
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    
+    const newX = touch.clientX - dragStart.x;
+    const newY = touch.clientY - dragStart.y;
+    
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handleTouchEnd = () => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    const windowWidth = window.innerWidth;
+    const fabWidth = 56;
+    const midPoint = windowWidth / 2;
+    
+    const snappedX = position.x < midPoint ? 24 : windowWidth - fabWidth - 24;
+    
+    setPosition({ x: snappedX, y: position.y });
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchend', handleTouchEnd);
+      
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
+      };
+    }
+  }, [isDragging, dragStart, position]);
+
+  const tooltipClass = position.x < window.innerWidth / 2 
+    ? "absolute left-full ml-3 px-3 py-1.5 bg-white text-gray-800 text-xs font-semibold rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none"
+    : "absolute right-full mr-3 px-3 py-1.5 bg-white text-gray-800 text-xs font-semibold rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none";
 
   return (
     <a
+      ref={fabRef}
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#25D366] hover:bg-[#20BA5C] text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group hover:scale-110 active:scale-95"
+      onMouseDown={handleMouseDown}
+      onTouchStart={handleTouchStart}
+      style={{
+        position: 'fixed',
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        transform: isDragging ? 'scale(1.1)' : 'none',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        transition: isDragging ? 'none' : 'left 0.3s ease-out, transform 0.3s'
+      }}
+      className="z-50 w-14 h-14 bg-[#25D366] hover:bg-[#20BA5C] text-white rounded-full shadow-lg hover:shadow-xl flex items-center justify-center group active:scale-95"
       aria-label="Contact us on WhatsApp"
     >
       <svg
-        className="w-7 h-7"
+        className="w-7 h-7 pointer-events-none"
         viewBox="0 0 24 24"
         fill="currentColor"
       >
@@ -19,7 +129,7 @@ const WhatsAppFab = () => {
       </svg>
       
       {/* Tooltip */}
-      <span className="absolute right-full mr-3 px-3 py-1.5 bg-white text-gray-800 text-xs font-semibold rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none">
+      <span className={tooltipClass}>
         Chat on WhatsApp
       </span>
     </a>

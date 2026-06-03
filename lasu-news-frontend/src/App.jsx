@@ -14,6 +14,7 @@ import AllNews from "./pages/AllNews";
 import SearchResults from "./pages/SearchResults";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
+import Profile from "./pages/Profile";
 import AdminDashboard from "./pages/admin/Dashboard";
 import AdminPostList from "./pages/admin/PostList";
 import AdminPostEditor from "./pages/admin/PostEditor";
@@ -101,6 +102,17 @@ const App = () => {
                   <Footer />
                   <WhatsAppFab />
                 </>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Navbar />
+                  <Profile />
+                  <Footer />
+                  <WhatsAppFab />
+                </ProtectedRoute>
               }
             />
 

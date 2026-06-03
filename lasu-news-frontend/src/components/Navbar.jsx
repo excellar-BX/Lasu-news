@@ -285,9 +285,13 @@ const Navbar = () => {
                     Admin
                   </Link>
                 )}
-                <span className="text-white/40 text-xs px-2 hidden xl:inline">
-                  Hi, {user.name.split(" ")[0]}
-                </span>
+                <Link
+                  to="/profile"
+                  className="text-white/70 hover:text-white px-3 xl:px-4 py-2
+                             rounded-full transition-all text-xs whitespace-nowrap"
+                >
+                  Profile
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="border border-white/20 hover:border-white/60
@@ -435,6 +439,16 @@ const Navbar = () => {
                         Admin Panel
                       </Link>
                     )}
+                    <Link
+                      to="/profile"
+                      onClick={() => setMenuOpen(false)}
+                      className="block border border-white/20 text-white/70
+                                 text-center py-2.5 rounded-xl text-sm
+                                 font-medium hover:bg-white/10 hover:text-white
+                                 transition-all"
+                    >
+                      Profile
+                    </Link>
                     <button
                       onClick={() => {
                         setMenuOpen(false);

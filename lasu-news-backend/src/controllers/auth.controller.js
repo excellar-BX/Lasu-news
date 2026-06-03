@@ -176,4 +176,36 @@ const me = async (req, res) => {
   }
 };
 
-module.exports = { signup, login, refresh, logout, me };
+// PUT /api/auth/profile
+const updateProfile = async (req, res) => {
+  const { name, email } = req.body;
+
+  if (!name && !email) {
+    return res.status(400).json({ message: "At least one field is required" });
+  }
+
+  try {
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (email) {
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser && existingUser.id !== req.user.id) {
+        return res.status(409).json({ message: "Email already in use" });
+      }
+      updateData.email = email;
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.user.id },
+      data: updateData,
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+    });
+
+    return res.status(200).json({ user });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+module.exports = { signup, login, refresh, logout, me, updateProfile };

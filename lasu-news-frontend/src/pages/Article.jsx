@@ -1,38 +1,48 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Helmet } from "react-helmet-async";
 import { getPostBySlug } from "../api/posts";
 import { addComment, deleteComment } from "../api/comments";
 import { useAuth } from "../context/AuthContext";
 
+// ── Constants ────────────────────────────────────────────────────────
+const SITE_NAME = "LASU News";
+const SITE_URL  = "https://lasunews.com.ng";
+const TWITTER_HANDLE = "@lasunews";
+const FALLBACK_OG_IMAGE = `${SITE_URL}/og-image.jpg`; // 1200×630 default
+
 const categoryColors = {
-  UPDATES: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
-  TRENDING: "bg-red-50 text-red-700 ring-1 ring-red-100",
-  OPPORTUNITIES: "bg-green-50 text-green-700 ring-1 ring-green-100",
-  SPOTLIGHT: "bg-purple-50 text-purple-700 ring-1 ring-purple-100",
-  EVENTS: "bg-orange-50 text-orange-700 ring-1 ring-orange-100",
+  UPDATES:      "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
+  TRENDING:     "bg-red-50 text-red-700 ring-1 ring-red-100",
+  OPPORTUNITIES:"bg-green-50 text-green-700 ring-1 ring-green-100",
+  SPOTLIGHT:    "bg-purple-50 text-purple-700 ring-1 ring-purple-100",
+  EVENTS:       "bg-orange-50 text-orange-700 ring-1 ring-orange-100",
 };
 
+// ── Helpers ──────────────────────────────────────────────────────────
 const formatTimeAgo = (date) => {
   const diff = Math.floor((Date.now() - new Date(date)) / 60000);
-  if (diff < 1) return "just now";
-  if (diff < 60) return `${diff}m ago`;
-  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+  if (diff < 1)     return "just now";
+  if (diff < 60)    return `${diff}m ago`;
+  if (diff < 1440)  return `${Math.floor(diff / 60)}h ago`;
   if (diff < 10080) return `${Math.floor(diff / 1440)}d ago`;
   return new Date(date).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+    month: "short", day: "numeric", year: "numeric",
   });
 };
 
-// ── Utility: parse text and make URLs clickable ──────────────────────
+/** Strip markdown/extra whitespace and cap at `max` chars */
+const makeExcerpt = (text = "", max = 155) => {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length <= max ? clean : `${clean.slice(0, max - 1)}…`;
+};
+
+/** Parse plain text → React nodes with clickable URLs + preserved newlines */
 const parseContentWithLinks = (text) => {
   if (!text) return null;
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
-
-  return parts.map((part, index) => {
+  return text.split(urlRegex).map((part, index) => {
     if (urlRegex.test(part)) {
       return (
         <a
@@ -48,7 +58,6 @@ const parseContentWithLinks = (text) => {
         </a>
       );
     }
-    // Preserve line breaks
     return part.split("\n").map((line, i, arr) => (
       <span key={`${index}-${i}`}>
         {line}
@@ -58,11 +67,111 @@ const parseContentWithLinks = (text) => {
   });
 };
 
+// ── Article SEO head ─────────────────────────────────────────────────
+const ArticleSEO = ({ post }) => {
+  const pageUrl    = `${SITE_URL}/article/${post.slug}`;
+  const ogImage    = post.coverImage || FALLBACK_OG_IMAGE;
+  const description = makeExcerpt(post.content);
+  const authorName  = post.author?.name || SITE_NAME;
+  const publishedAt = post.createdAt
+    ? new Date(post.createdAt).toISOString()
+    : undefined;
+
+  // JSON-LD NewsArticle schema
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    "headline": post.title,
+    "description": description,
+    "image": [ogImage],
+    "datePublished": publishedAt,
+    "dateModified": post.updatedAt
+      ? new Date(post.updatedAt).toISOString()
+      : publishedAt,
+    "author": {
+      "@type": "Person",
+      "name": authorName,
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": SITE_NAME,
+      "logo": {
+        "@type": "ImageObject",
+        "url": `${SITE_URL}/logo.png`,
+      },
+    },
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": pageUrl,
+    },
+    "articleSection": post.category,
+    "url": pageUrl,
+  };
+
+  return (
+    <Helmet>
+      {/* ── Primary ── */}
+      <title>{`${post.title} — ${SITE_NAME}`}</title>
+      <meta name="description"        content={description} />
+      <meta name="author"             content={authorName} />
+      <meta name="robots"             content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+      <link rel="canonical"           href={pageUrl} />
+
+      {/* ── Open Graph (Facebook / WhatsApp / LinkedIn) ── */}
+      <meta property="og:type"        content="article" />
+      <meta property="og:site_name"   content={SITE_NAME} />
+      <meta property="og:locale"      content="en_NG" />
+      <meta property="og:url"         content={pageUrl} />
+      <meta property="og:title"       content={`${post.title} — ${SITE_NAME}`} />
+      <meta property="og:description" content={description} />
+      <meta property="og:image"       content={ogImage} />
+      <meta property="og:image:secure_url" content={ogImage} />
+      <meta property="og:image:width"  content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta property="og:image:alt"    content={post.title} />
+      <meta property="og:image:type"   content="image/jpeg" />
+
+      {/* Article-specific OG */}
+      {publishedAt && (
+        <meta property="article:published_time" content={publishedAt} />
+      )}
+      {post.updatedAt && (
+        <meta
+          property="article:modified_time"
+          content={new Date(post.updatedAt).toISOString()}
+        />
+      )}
+      <meta property="article:author"  content={authorName} />
+      <meta property="article:section" content={post.category} />
+      <meta property="article:tag"     content={`LASU, ${post.category}, Lagos State University`} />
+
+      {/* ── Twitter / X Card ── */}
+      <meta name="twitter:card"        content="summary_large_image" />
+      <meta name="twitter:site"        content={TWITTER_HANDLE} />
+      <meta name="twitter:creator"     content={TWITTER_HANDLE} />
+      <meta name="twitter:url"         content={pageUrl} />
+      <meta name="twitter:title"       content={`${post.title} — ${SITE_NAME}`} />
+      <meta name="twitter:description" content={description} />
+      <meta name="twitter:image"       content={ogImage} />
+      <meta name="twitter:image:alt"   content={post.title} />
+
+      {/* ── WhatsApp (uses OG, but this reinforces it) ── */}
+      <meta property="og:image:width"  content="1200" />
+      <meta property="og:image:height" content="630" />
+
+      {/* ── JSON-LD Structured Data ── */}
+      <script type="application/ld+json">
+        {JSON.stringify(jsonLd)}
+      </script>
+    </Helmet>
+  );
+};
+
 // ── Share Modal ──────────────────────────────────────────────────────
 const ShareModal = ({ post, onClose }) => {
   const [copied, setCopied] = useState(false);
-  const pageUrl = window.location.href;
-  const encodedUrl = encodeURIComponent(pageUrl);
+  const pageUrl      = `${SITE_URL}/article/${post.slug}`;
+  const encodedUrl   = encodeURIComponent(pageUrl);
   const encodedTitle = encodeURIComponent(post?.title || "");
 
   const shareLinks = [
@@ -129,7 +238,6 @@ const ShareModal = ({ post, onClose }) => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
-      // Fallback
       const textarea = document.createElement("textarea");
       textarea.value = pageUrl;
       document.body.appendChild(textarea);
@@ -143,20 +251,17 @@ const ShareModal = ({ post, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm
                    animate-[fadeIn_150ms_ease]"
         onClick={onClose}
       />
-
-      {/* Sheet */}
       <div
         className="relative bg-white w-full sm:max-w-md rounded-t-3xl
                    sm:rounded-2xl shadow-2xl animate-[slideInUp_250ms_ease]
                    overflow-hidden"
       >
-        {/* Handle bar (mobile) */}
+        {/* Handle bar */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
@@ -177,18 +282,10 @@ const ShareModal = ({ post, onClose }) => {
               className="w-8 h-8 flex items-center justify-center rounded-xl
                          bg-gray-100 hover:bg-gray-200 transition-colors"
             >
-              <svg
-                className="w-4 h-4 text-gray-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
+              <svg className="w-4 h-4 text-gray-500" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -206,7 +303,8 @@ const ShareModal = ({ post, onClose }) => {
                             active:scale-95 ${s.color}`}
               >
                 <span className={s.iconColor}>{s.icon}</span>
-                <span className="text-[9px] font-semibold text-gray-500 text-center leading-tight">
+                <span className="text-[9px] font-semibold text-gray-500
+                                 text-center leading-tight">
                   {s.name.split(" ")[0]}
                 </span>
               </a>
@@ -222,25 +320,16 @@ const ShareModal = ({ post, onClose }) => {
             <div className="flex-1 h-px bg-gray-100" />
           </div>
 
-          {/* Copy link */}
-          <div
-            className="flex items-center gap-2 bg-gray-50 rounded-xl
-                        p-1 pl-4 border border-gray-100"
-          >
-            <svg
-              className="w-4 h-4 text-gray-400 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
+          {/* Copy link row */}
+          <div className="flex items-center gap-2 bg-gray-50 rounded-xl
+                          p-1 pl-4 border border-gray-100">
+            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none"
+              stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round"
                 strokeWidth={2}
                 d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656
                    5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4
-                   4 0 00-5.656-5.656l-1.1 1.1"
-              />
+                   4 0 00-5.656-5.656l-1.1 1.1" />
             </svg>
             <p className="flex-1 text-xs text-gray-500 truncate font-mono">
               {pageUrl}
@@ -249,32 +338,20 @@ const ShareModal = ({ post, onClose }) => {
               onClick={handleCopyLink}
               className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-xs
                          font-bold transition-all duration-200 active:scale-95
-                         ${
-                           copied
-                             ? "bg-green-500 text-white"
-                             : "bg-[#e63946] text-white hover:bg-red-700"
-                         }`}
+                         ${copied
+                           ? "bg-green-500 text-white"
+                           : "bg-[#e63946] text-white hover:bg-red-700"}`}
             >
               {copied ? (
                 <span className="flex items-center gap-1.5">
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2.5}
-                      d="M5 13l4 4L19 7"
-                    />
+                  <svg className="w-3.5 h-3.5" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round"
+                      strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                   Copied!
                 </span>
-              ) : (
-                "Copy"
-              )}
+              ) : "Copy"}
             </button>
           </div>
         </div>
@@ -283,7 +360,7 @@ const ShareModal = ({ post, onClose }) => {
   );
 };
 
-// ── Delete comment modal ─────────────────────────────────────────────
+// ── Delete Comment Modal ─────────────────────────────────────────────
 const DeleteCommentModal = ({ comment, onConfirm, onCancel }) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
     <div
@@ -295,24 +372,15 @@ const DeleteCommentModal = ({ comment, onConfirm, onCancel }) => (
       className="relative bg-white rounded-2xl shadow-2xl p-6 w-full
                  max-w-md animate-[slideInUp_200ms_ease]"
     >
-      <div
-        className="w-12 h-12 bg-red-50 rounded-xl flex items-center
-                    justify-center mb-4"
-      >
-        <svg
-          className="w-6 h-6 text-red-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      <div className="w-12 h-12 bg-red-50 rounded-xl flex items-center
+                      justify-center mb-4">
+        <svg className="w-6 h-6 text-red-500" fill="none"
+          stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round"
             strokeWidth={1.75}
             d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0
                01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0
-               00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-          />
+               00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
       </div>
       <h3 className="text-base font-bold text-[#0a0a0a] mb-1">
@@ -352,7 +420,7 @@ const DeleteCommentModal = ({ comment, onConfirm, onCancel }) => (
   </div>
 );
 
-// ── Main Article component ───────────────────────────────────────────
+// ── Main Article ─────────────────────────────────────────────────────
 const Article = () => {
   const { slug } = useParams();
   const { user } = useAuth();
@@ -361,11 +429,7 @@ const Article = () => {
   const [pendingDelete, setPendingDelete] = useState(null);
   const [showShare, setShowShare] = useState(false);
 
-  const {
-    data: postData,
-    isLoading,
-    error,
-  } = useQuery({
+  const { data: postData, isLoading, error } = useQuery({
     queryKey: ["post", slug],
     queryFn: () => getPostBySlug(slug),
     enabled: !!slug,
@@ -377,11 +441,11 @@ const Article = () => {
   const addCommentMutation = useMutation({
     mutationFn: ({ postId, content }) => addComment(postId, content),
     onSuccess: (data) => {
-      queryClient.setQueryData(["post", slug], (oldData) => ({
-        ...oldData,
+      queryClient.setQueryData(["post", slug], (old) => ({
+        ...old,
         post: {
-          ...oldData.post,
-          comments: [...(oldData.post.comments || []), data.comment],
+          ...old.post,
+          comments: [...(old.post.comments || []), data.comment],
         },
       }));
       setCommentContent("");
@@ -395,11 +459,11 @@ const Article = () => {
   const deleteCommentMutation = useMutation({
     mutationFn: deleteComment,
     onSuccess: (_, commentId) => {
-      queryClient.setQueryData(["post", slug], (oldData) => ({
-        ...oldData,
+      queryClient.setQueryData(["post", slug], (old) => ({
+        ...old,
         post: {
-          ...oldData.post,
-          comments: oldData.post.comments.filter((c) => c.id !== commentId),
+          ...old.post,
+          comments: old.post.comments.filter((c) => c.id !== commentId),
         },
       }));
       setPendingDelete(null);
@@ -413,10 +477,7 @@ const Article = () => {
   const handleSubmitComment = (e) => {
     e.preventDefault();
     if (!commentContent.trim() || !post) return;
-    addCommentMutation.mutate({
-      postId: post.id,
-      content: commentContent.trim(),
-    });
+    addCommentMutation.mutate({ postId: post.id, content: commentContent.trim() });
   };
 
   const handleDeleteComment = () => {
@@ -426,99 +487,106 @@ const Article = () => {
   /* ── Loading skeleton ─────────────────────────────────────────────── */
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#f8fafc]">
-        <header className="bg-white border-b border-gray-100">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
-            <div className="h-4 w-28 bg-gray-100 rounded animate-pulse" />
-          </div>
-        </header>
-        <article className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
-          <div className="h-5 w-20 bg-gray-100 rounded-full animate-pulse" />
-          <div className="h-10 bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-8 w-3/4 bg-gray-100 rounded animate-pulse" />
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gray-100 rounded-full animate-pulse" />
-            <div className="space-y-2 flex-1">
-              <div className="h-4 w-32 bg-gray-100 rounded animate-pulse" />
-              <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+      <>
+        {/* Even while loading, keep a generic title */}
+        <Helmet>
+          <title>Loading article… — {SITE_NAME}</title>
+          <meta name="robots" content="noindex" />
+        </Helmet>
+
+        <div className="min-h-screen bg-[#f8fafc]">
+          <header className="bg-white border-b border-gray-100">
+            <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+              <div className="h-4 w-28 bg-gray-100 rounded animate-pulse" />
             </div>
-          </div>
-          <div className="h-80 bg-gray-100 rounded-2xl animate-pulse" />
-          <div className="space-y-3">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="h-4 bg-gray-100 rounded animate-pulse"
-                style={{ width: `${100 - i * 5}%` }}
-              />
-            ))}
-          </div>
-        </article>
-      </div>
+          </header>
+          <article className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+            <div className="h-5 w-20 bg-gray-100 rounded-full animate-pulse" />
+            <div className="h-10 bg-gray-100 rounded-xl animate-pulse" />
+            <div className="h-8 w-3/4 bg-gray-100 rounded animate-pulse" />
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gray-100 rounded-full animate-pulse" />
+              <div className="space-y-2 flex-1">
+                <div className="h-4 w-32 bg-gray-100 rounded animate-pulse" />
+                <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="h-80 bg-gray-100 rounded-2xl animate-pulse" />
+            <div className="space-y-3">
+              {[...Array(6)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-4 bg-gray-100 rounded animate-pulse"
+                  style={{ width: `${100 - i * 5}%` }}
+                />
+              ))}
+            </div>
+          </article>
+        </div>
+      </>
     );
   }
 
   /* ── Error state ──────────────────────────────────────────────────── */
   if (error || !post) {
     return (
-      <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center p-4">
-        <div
-          className="bg-white rounded-2xl border border-gray-100 p-8
-                      max-w-md w-full text-center"
-        >
-          <div
-            className="w-16 h-16 bg-red-50 rounded-2xl flex items-center
-                        justify-center mx-auto mb-4"
-          >
-            <svg
-              className="w-8 h-8 text-red-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+      <>
+        <Helmet>
+          <title>Article Not Found — {SITE_NAME}</title>
+          <meta name="robots" content="noindex" />
+        </Helmet>
+
+        <div className="min-h-screen bg-[#f8fafc] flex items-center
+                        justify-center p-4">
+          <div className="bg-white rounded-2xl border border-gray-100 p-8
+                          max-w-md w-full text-center">
+            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center
+                            justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-500" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  strokeWidth={1.75}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-[#0a0a0a] mb-2">
+              Article Not Found
+            </h2>
+            <p className="text-sm text-gray-500 mb-6">
+              {error?.message ||
+                "This article doesn't exist or has been removed."}
+            </p>
+            <Link
+              to="/"
+              className="inline-flex items-center gap-2 px-5 py-2.5
+                         bg-[#e63946] text-white rounded-xl font-semibold
+                         text-sm hover:bg-red-700 transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.75}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Back to Home
+            </Link>
           </div>
-          <h2 className="text-lg font-bold text-[#0a0a0a] mb-2">
-            Article Not Found
-          </h2>
-          <p className="text-sm text-gray-500 mb-6">
-            {error?.message || "This article doesn't exist or has been removed."}
-          </p>
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5
-                       bg-[#e63946] text-white rounded-xl font-semibold
-                       text-sm hover:bg-red-700 transition-colors"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to Home
-          </Link>
         </div>
-      </div>
+      </>
     );
   }
 
+  /* ── Happy path ───────────────────────────────────────────────────── */
+  const readingTime = Math.max(
+    1,
+    Math.ceil(post.content?.split(" ").length / 200)
+  );
+
   return (
     <>
-      {/* Modals */}
+      {/* ══ Dynamic SEO head ══ */}
+      <ArticleSEO post={post} />
+
+      {/* ══ Modals ══ */}
       {pendingDelete && (
         <DeleteCommentModal
           comment={pendingDelete}
@@ -531,15 +599,12 @@ const Article = () => {
       )}
 
       <div className="min-h-screen bg-[#f8fafc]">
-        {/* ── Sticky Header ── */}
-        <header
-          className="bg-white/80 backdrop-blur-md border-b border-gray-100
-                     sticky top-0 z-40"
-        >
-          <div
-            className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4
-                        flex items-center justify-between"
-          >
+
+        {/* ── Sticky header ── */}
+        <header className="bg-white/80 backdrop-blur-md border-b
+                           border-gray-100 sticky top-0 z-40">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 sm:py-4
+                          flex items-center justify-between">
             <Link
               to="/"
               className="inline-flex items-center gap-2 text-sm font-semibold
@@ -549,21 +614,14 @@ const Article = () => {
               <svg
                 className="w-4 h-4 group-hover:-translate-x-0.5
                            transition-transform"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round"
+                  strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back to Home
             </Link>
 
-            {/* Share button in header */}
             <button
               onClick={() => setShowShare(true)}
               className="inline-flex items-center gap-2 px-3.5 py-2
@@ -572,44 +630,35 @@ const Article = () => {
                          hover:border-[#e63946]/30 hover:bg-red-50/50
                          transition-all active:scale-95"
             >
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <svg className="w-3.5 h-3.5" fill="none"
+                stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114
-                     -.938-.316-1.342m0 2.684a3 3 0 110-2.684m0
-                     2.684l6.632 3.316m-6.632-6l6.632-3.316m0
-                     0a3 3 0 105.367-2.684 3 3 0 00-5.367
-                     2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0
-                     00-5.368-2.684z"
-                />
+                  d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482
+                     -.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0
+                     2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0
+                     105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0
+                     105.368 2.684 3 3 0 00-5.368-2.684z" />
               </svg>
               Share
             </button>
           </div>
         </header>
 
-        {/* ── Article body ── */}
+        {/* ── Article ── */}
         <article className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
           {/* Category badge */}
           <span
             className={`inline-flex items-center text-[11px] font-bold
                         uppercase tracking-widest px-3 py-1.5 rounded-full
-                        ${
-                          categoryColors[post.category] ||
-                          categoryColors.UPDATES
-                        }`}
+                        ${categoryColors[post.category] ||
+                          categoryColors.UPDATES}`}
           >
             {post.category}
           </span>
 
-          {/* Title */}
+          {/* Title — h1 for SEO */}
           <h1
             className="text-3xl sm:text-4xl lg:text-5xl font-black
                        text-[#0a0a0a] leading-tight mt-4 mb-6"
@@ -641,51 +690,40 @@ const Article = () => {
               </div>
             </div>
 
-            {/* Reading time estimate */}
             <div className="flex items-center gap-1.5 text-xs text-gray-400">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
                   strokeWidth={1.75}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              {Math.max(1, Math.ceil(post.content?.split(" ").length / 200))} min
-              read
+              {readingTime} min read
             </div>
           </div>
 
-          {/* Cover Image */}
+          {/* Cover image — loading="eager" for LCP */}
           {post.coverImage && (
-            <div
-              className="mb-10 rounded-2xl overflow-hidden
-                          shadow-xl shadow-gray-200/60"
-            >
+            <div className="mb-10 rounded-2xl overflow-hidden
+                            shadow-xl shadow-gray-200/60">
               <img
                 src={post.coverImage}
                 alt={post.title}
+                loading="eager"
+                fetchpriority="high"
                 className="w-full h-64 sm:h-80 lg:h-[28rem] object-cover"
               />
             </div>
           )}
 
-          {/* Content — with clickable links */}
+          {/* Article content */}
           <div className="mb-12">
-            <p
-              className="text-gray-700 leading-[1.85] text-base sm:text-lg
-                         font-[400] tracking-[0.01em]"
-            >
+            <p className="text-gray-700 leading-[1.85] text-base sm:text-lg
+                          font-[400] tracking-[0.01em]">
               {parseContentWithLinks(post.content)}
             </p>
           </div>
 
-          {/* ── Share CTA strip ── */}
+          {/* Share CTA strip */}
           <div
             className="flex flex-col sm:flex-row items-center justify-between
                         gap-4 bg-gradient-to-r from-gray-50 to-gray-50/50
@@ -704,38 +742,31 @@ const Article = () => {
               className="inline-flex items-center gap-2.5 px-5 py-2.5
                          bg-[#e63946] text-white rounded-xl text-sm
                          font-bold hover:bg-red-700 active:scale-95
-                         transition-all shadow-sm shadow-red-200
-                         flex-shrink-0"
+                         transition-all shadow-sm shadow-red-200 flex-shrink-0"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round"
                   strokeWidth={2}
                   d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482
                      -.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0
                      2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0
                      105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0
-                     105.368 2.684 3 3 0 00-5.368-2.684z"
-                />
+                     105.368 2.684 3 3 0 00-5.368-2.684z" />
               </svg>
               Share Article
             </button>
           </div>
 
-          {/* ── Comments Section ── */}
-          <section className="pt-10 border-t border-gray-200">
-            <h2 className="text-2xl font-black text-[#0a0a0a] mb-6 flex items-center gap-3">
+          {/* ── Comments ── */}
+          <section aria-label="Comments" className="pt-10 border-t border-gray-200">
+            <h2 className="text-2xl font-black text-[#0a0a0a] mb-6
+                           flex items-center gap-3">
               Comments
               <span
-                className="inline-flex items-center justify-center min-w-[1.75rem]
-                           h-7 px-2 bg-gray-100 text-gray-500 text-sm
-                           font-bold rounded-full"
+                className="inline-flex items-center justify-center
+                           min-w-[1.75rem] h-7 px-2 bg-gray-100
+                           text-gray-500 text-sm font-bold rounded-full"
               >
                 {post.comments?.length || 0}
               </span>
@@ -744,10 +775,8 @@ const Article = () => {
             {/* Comment form */}
             {user ? (
               <form onSubmit={handleSubmitComment} className="mb-8">
-                <div
-                  className="bg-white rounded-2xl border border-gray-100
-                              p-5 shadow-sm"
-                >
+                <div className="bg-white rounded-2xl border border-gray-100
+                                p-5 shadow-sm">
                   <div className="flex items-start gap-3 mb-4">
                     <div
                       className="w-10 h-10 rounded-full bg-gradient-to-br
@@ -763,10 +792,9 @@ const Article = () => {
                       placeholder="Share your thoughts..."
                       className="flex-1 px-4 py-3 border border-gray-200
                                  rounded-xl resize-none focus:ring-2
-                                 focus:ring-[#e63946]/30
-                                 focus:border-[#e63946] outline-none
-                                 transition-all text-sm placeholder:text-gray-300
-                                 bg-gray-50/50"
+                                 focus:ring-[#e63946]/30 focus:border-[#e63946]
+                                 outline-none transition-all text-sm
+                                 placeholder:text-gray-300 bg-gray-50/50"
                       rows="3"
                       required
                     />
@@ -788,30 +816,16 @@ const Article = () => {
                     >
                       {addCommentMutation.isPending ? (
                         <>
-                          <svg
-                            className="w-4 h-4 animate-spin"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
-                              stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8v8z"
-                            />
+                          <svg className="w-4 h-4 animate-spin" fill="none"
+                            viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12"
+                              r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor"
+                              d="M4 12a8 8 0 018-8v8z" />
                           </svg>
-                          Posting...
+                          Posting…
                         </>
-                      ) : (
-                        "Post Comment"
-                      )}
+                      ) : "Post Comment"}
                     </button>
                   </div>
                 </div>
@@ -821,26 +835,17 @@ const Article = () => {
                 className="mb-8 bg-gradient-to-br from-gray-50 to-white
                             border border-gray-100 rounded-2xl p-6 text-center"
               >
-                <div
-                  className="w-12 h-12 bg-gray-100 rounded-2xl flex
-                              items-center justify-center mx-auto mb-3"
-                >
-                  <svg
-                    className="w-6 h-6 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+                <div className="w-12 h-12 bg-gray-100 rounded-2xl flex
+                                items-center justify-center mx-auto mb-3">
+                  <svg className="w-6 h-6 text-gray-400" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round"
                       strokeWidth={1.75}
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0
                          4.418-4.03 8-9 8a9.863 9.863 0
                          01-4.255-.949L3 20l1.395-3.72C3.512
                          15.042 3 13.574 3 12c0-4.418 4.03-8
-                         9-8s9 3.582 9 8z"
-                    />
+                         9-8s9 3.582 9 8z" />
                   </svg>
                 </div>
                 <p className="text-sm font-semibold text-[#0a0a0a] mb-1">
@@ -848,10 +853,8 @@ const Article = () => {
                 </p>
                 <p className="text-xs text-gray-500 mb-4">
                   Please{" "}
-                  <Link
-                    to="/login"
-                    className="text-[#e63946] font-semibold hover:underline"
-                  >
+                  <Link to="/login"
+                    className="text-[#e63946] font-semibold hover:underline">
                     log in
                   </Link>{" "}
                   to leave a comment.
@@ -867,12 +870,9 @@ const Article = () => {
                     key={comment.id}
                     className={`bg-white rounded-2xl border border-gray-100
                                 p-5 shadow-sm transition-all duration-300
-                                ${
-                                  deleteCommentMutation.isPending &&
+                                ${deleteCommentMutation.isPending &&
                                   pendingDelete?.id === comment.id
-                                    ? "opacity-40 scale-[0.99]"
-                                    : ""
-                                }`}
+                                  ? "opacity-40 scale-[0.99]" : ""}`}
                   >
                     <div className="flex items-start gap-4">
                       <div
@@ -884,10 +884,8 @@ const Article = () => {
                         {comment.user?.name?.charAt(0)?.toUpperCase() || "?"}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div
-                          className="flex items-center justify-between
-                                      gap-4 mb-2 flex-wrap"
-                        >
+                        <div className="flex items-center justify-between
+                                        gap-4 mb-2 flex-wrap">
                           <div className="flex items-center gap-2">
                             <p className="font-semibold text-sm text-[#0a0a0a]">
                               {comment.user?.name || "Unknown"}
@@ -905,23 +903,14 @@ const Article = () => {
                                          transition-colors flex items-center
                                          gap-1"
                             >
-                              <svg
-                                className="w-3.5 h-3.5"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0
-                                     0116.138 21H7.862a2 2 0
-                                     01-1.995-1.858L5 7m5
-                                     4v6m4-6v6m1-10V4a1 1 0
-                                     00-1-1h-4a1 1 0 00-1
-                                     1v3M4 7h16"
-                                />
+                              <svg className="w-3.5 h-3.5" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round"
+                                  strokeLinejoin="round" strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138
+                                     21H7.862a2 2 0 01-1.995-1.858L5
+                                     7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1
+                                     1 0 00-1 1v3M4 7h16" />
                               </svg>
                               Delete
                             </button>
@@ -936,30 +925,19 @@ const Article = () => {
                 ))}
               </div>
             ) : (
-              <div
-                className="bg-white rounded-2xl border border-gray-100
-                            py-16 text-center"
-              >
-                <div
-                  className="w-14 h-14 bg-gray-50 rounded-2xl flex
-                              items-center justify-center mx-auto mb-4"
-                >
-                  <svg
-                    className="w-7 h-7 text-gray-300"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+              <div className="bg-white rounded-2xl border border-gray-100
+                              py-16 text-center">
+                <div className="w-14 h-14 bg-gray-50 rounded-2xl flex
+                                items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 text-gray-300" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round"
                       strokeWidth={1.5}
-                      d="M8 12h.01M12 12h.01M16 12h.01M21
-                         12c0 4.418-4.03 8-9 8a9.863 9.863
-                         0 01-4.255-.949L3 20l1.395-3.72C3.512
+                      d="M8 12h.01M12 12h.01M16 12h.01M21 12c0
+                         4.418-4.03 8-9 8a9.863 9.863 0
+                         01-4.255-.949L3 20l1.395-3.72C3.512
                          15.042 3 13.574 3 12c0-4.418 4.03-8
-                         9-8s9 3.582 9 8z"
-                    />
+                         9-8s9 3.582 9 8z" />
                   </svg>
                 </div>
                 <p className="text-sm font-semibold text-gray-400 mb-1">

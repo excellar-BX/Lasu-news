@@ -2,11 +2,191 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>lasu-news-frontend</title>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         FAVICON & THEME
+    ═══════════════════════════════════════════════════════════════ -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#e63946" />
+    <meta name="msapplication-TileColor" content="#e63946" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         PRIMARY SEO
+    ═══════════════════════════════════════════════════════════════ -->
+    <title>LASU News — Latest Updates, Events & Opportunities at LASU</title>
+    <meta
+      name="description"
+      content="Stay ahead with LASU News — your go-to source for the latest news, events, opportunities, trending stories, and official updates from Lagos State University."
+    />
+    <meta
+      name="keywords"
+      content="LASU news, Lagos State University, LASU updates, LASU events, LASU opportunities, university news Nigeria, LASU students, LASU portal"
+    />
+    <meta name="author" content="LASU News" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <meta name="googlebot" content="index, follow" />
+    <link rel="canonical" href="https://lasunews.com.ng/" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         OPEN GRAPH — FACEBOOK / WHATSAPP / LINKEDIN
+    ═══════════════════════════════════════════════════════════════ -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LASU News" />
+    <meta property="og:locale" content="en_NG" />
+    <meta property="og:url" content="https://lasunews.com.ng/" />
+    <meta
+      property="og:title"
+      content="LASU News — Latest Updates, Events & Opportunities at LASU"
+    />
+    <meta
+      property="og:description"
+      content="Stay ahead with LASU News — your go-to source for the latest news, events, opportunities, trending stories, and official updates from Lagos State University."
+    />
+    <meta
+      property="og:image"
+      content="https://lasunews.com.ng/og-image.jpg"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta
+      property="og:image:alt"
+      content="LASU News — Lagos State University News Platform"
+    />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         TWITTER / X CARD
+    ═══════════════════════════════════════════════════════════════ -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@lasunews" />
+    <meta name="twitter:creator" content="@lasunews" />
+    <meta
+      name="twitter:title"
+      content="LASU News — Latest Updates, Events & Opportunities at LASU"
+    />
+    <meta
+      name="twitter:description"
+      content="Stay ahead with LASU News — your go-to source for the latest news, events, opportunities, trending stories, and official updates from Lagos State University."
+    />
+    <meta
+      name="twitter:image"
+      content="https://lasunews.com.ng/og-image.jpg"
+    />
+    <meta
+      name="twitter:image:alt"
+      content="LASU News — Lagos State University News Platform"
+    />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         STRUCTURED DATA — ORGANIZATION
+    ═══════════════════════════════════════════════════════════════ -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "LASU News",
+        "url": "https://lasunews.com.ng",
+        "logo": "https://lasunews.com.ng/logo.png",
+        "description": "Your go-to source for the latest news, events, opportunities, and official updates from Lagos State University.",
+        "sameAs": [
+          "https://twitter.com/lasunews",
+          "https://www.facebook.com/lasunews",
+          "https://www.instagram.com/lasunews"
+        ],
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "editorial",
+          "email": "hello@lasunews.com.ng"
+        }
+      }
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         STRUCTURED DATA — WEBSITE + SITELINKS SEARCH BOX
+    ═══════════════════════════════════════════════════════════════ -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "LASU News",
+        "url": "https://lasunews.com.ng",
+        "description": "Latest news, events, and opportunities from Lagos State University.",
+        "inLanguage": "en-NG",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://lasunews.com.ng/?q={search_term_string}"
+          },
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         STRUCTURED DATA — NEWS MEDIA ORGANIZATION
+    ═══════════════════════════════════════════════════════════════ -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "NewsMediaOrganization",
+        "name": "LASU News",
+        "url": "https://lasunews.com.ng",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://lasunews.com.ng/logo.png",
+          "width": 512,
+          "height": 512
+        },
+        "foundingDate": "2024",
+        "description": "LASU News is the leading student news platform for Lagos State University, covering updates, events, opportunities, and trending campus stories.",
+        "publishingPrinciples": "https://lasunews.com.ng/about",
+        "masthead": "https://lasunews.com.ng/about"
+      }
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         PERFORMANCE — FONT PRECONNECT + LOAD
+    ═══════════════════════════════════════════════════════════════ -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         PERFORMANCE — DNS PREFETCH
+    ═══════════════════════════════════════════════════════════════ -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         GEO / LANGUAGE TARGETING
+    ═══════════════════════════════════════════════════════════════ -->
+    <meta name="geo.region" content="NG-LA" />
+    <meta name="geo.placename" content="Lagos, Nigeria" />
+    <meta name="language" content="English" />
+    <link rel="alternate" hreflang="en-ng" href="https://lasunews.com.ng/" />
+    <link rel="alternate" hreflang="x-default" href="https://lasunews.com.ng/" />
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         MISC
+    ═══════════════════════════════════════════════════════════════ -->
+    <meta name="rating" content="general" />
+    <meta name="revisit-after" content="3 days" />
+    <meta name="category" content="Education, News, University" />
+    <meta name="classification" content="News" />
+    <meta name="coverage" content="Nigeria" />
+    <meta name="distribution" content="global" />
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="MobileOptimized" content="320" />
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
