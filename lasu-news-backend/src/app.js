@@ -14,10 +14,10 @@ app.use(
   cors({
     origin: (origin, callback) => {
       const allowedOrigins = [
+        'https://lasunews.vercel.app',
         process.env.CLIENT_URL,
         'http://localhost:5173',
-        'https://lasu-news.vercel.app',
-        'https://lasunews.vercel.app'
+        'https://lasu-news.vercel.app'
       ].filter(Boolean);
 
       if (!origin || allowedOrigins.includes(origin)) {
