@@ -21,7 +21,7 @@ app.use(
       ].filter(Boolean);
 
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
+        callback(null, origin);
       } else {
         callback(new Error('Not allowed by CORS'));
       }
