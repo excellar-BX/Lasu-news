@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 
 // ── Constants ────────────────────────────────────────────────────────
 const SITE_NAME = "LASU News";
-const SITE_URL  = "https://lasunews.com.ng";
+const SITE_URL  = "https://lasu-news.vercel.app";
 const TWITTER_HANDLE = "@lasunews";
 const FALLBACK_OG_IMAGE = `${SITE_URL}/og-image.jpg`; // 1200×630 default
 

@@ -25,7 +25,7 @@ const WhatsAppFab = () => {
   // ── Initialize position: right edge, 30% from bottom ──────────────
   useEffect(() => {
     const initX = window.innerWidth - FAB_SIZE - EDGE_PADDING;
-    const initY = window.innerHeight - window.innerHeight * 0.30 - FAB_SIZE / 2;
+    const initY = window.innerHeight - window.innerHeight * 0.20 - FAB_SIZE / 2;
     setPosition({ x: initX, y: initY });
     setSide('right');
     setMounted(true);
