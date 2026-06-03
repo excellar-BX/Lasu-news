@@ -7,6 +7,7 @@ import Navbar from "./components/Navbar";
 import AdminLayout from "./components/AdminLayout";
 import Footer from "./components/Footer";
 import WhatsAppFab from "./components/WhatsAppFab";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import Home from "./pages/Home";
 import Article from "./pages/Article";
@@ -37,7 +38,8 @@ const App = () => {
       <HelmetProvider>
         <AuthProvider>
           <BrowserRouter>
-            <Routes>
+            <ErrorBoundary>
+              <Routes>
             {/* Public */}
             <Route
               path="/"
@@ -179,6 +181,7 @@ const App = () => {
               }
             />
           </Routes>
+            </ErrorBoundary>
         </BrowserRouter>
       </AuthProvider>
     </HelmetProvider>
