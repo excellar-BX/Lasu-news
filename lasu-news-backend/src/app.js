@@ -16,9 +16,10 @@ app.use(
       const allowedOrigins = [
         process.env.CLIENT_URL,
         'http://localhost:5173',
-        'https://lasu-news.vercel.app'
+        'https://lasu-news.vercel.app',
+        'https://lasunews.vercel.app'
       ].filter(Boolean);
-      
+
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
