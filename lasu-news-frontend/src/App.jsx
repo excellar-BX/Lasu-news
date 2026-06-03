@@ -5,6 +5,8 @@ import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute, AdminRoute } from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
 import AdminLayout from "./components/AdminLayout";
+import Footer from "./components/Footer";
+import WhatsAppFab from "./components/WhatsAppFab";
 
 import Home from "./pages/Home";
 import Article from "./pages/Article";
@@ -33,15 +35,74 @@ const App = () => {
       <HelmetProvider>
         <AuthProvider>
           <BrowserRouter>
-            <Navbar />
             <Routes>
             {/* Public */}
-            <Route path="/" element={<Home />} />
-            <Route path="/news" element={<AllNews />} />
-            <Route path="/news/:slug" element={<Article />} />
-            <Route path="/search" element={<SearchResults />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+            <Route
+              path="/"
+              element={
+                <>
+                  <Navbar />
+                  <Home />
+                  <Footer />
+                  <WhatsAppFab />
+                </>
+              }
+            />
+            <Route
+              path="/news"
+              element={
+                <>
+                  <Navbar />
+                  <AllNews />
+                  <Footer />
+                  <WhatsAppFab />
+                </>
+              }
+            />
+            <Route
+              path="/news/:slug"
+              element={
+                <>
+                  <Navbar />
+                  <Article />
+                  <Footer />
+                  <WhatsAppFab />
+                </>
+              }
+            />
+            <Route
+              path="/search"
+              element={
+                <>
+                  <Navbar />
+                  <SearchResults />
+                  <Footer />
+                  <WhatsAppFab />
+                </>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <>
+                  <Navbar />
+                  <Login />
+                  <Footer />
+                  <WhatsAppFab />
+                </>
+              }
+            />
+            <Route
+              path="/signup"
+              element={
+                <>
+                  <Navbar />
+                  <Signup />
+                  <Footer />
+                  <WhatsAppFab />
+                </>
+              }
+            />
 
             {/* Admin */}
             <Route
