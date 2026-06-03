@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getAllPostsAdmin, deletePost, updatePost } from "../../api/posts";
+import { formatNumber } from "../../utils/formatNumber";
 
 const categoryColors = {
   UPDATES:      "bg-blue-50 text-blue-700 ring-blue-100",
@@ -393,12 +394,12 @@ const PostList = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-50">
-                    {["Post", "Category", "Status", "Date", ""].map((h) => (
+                    {["Post", "Category", "Status", "Views", "Date", ""].map((h) => (
                       <th
                         key={h}
-                        className="px-6 py-3.5 text-left text-[11px]
+                        className={`px-6 py-3.5 text-left text-[11px]
                                    font-bold text-gray-400 uppercase
-                                   tracking-widest last:text-right"
+                                   tracking-widest ${h === "" ? "last:text-right" : ""}`}
                       >
                         {h}
                       </th>
@@ -510,6 +511,17 @@ const PostList = () => {
                           />
                           {post.published ? "Live" : "Draft"}
                         </span>
+                      </td>
+
+                      {/* Views */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1.5 text-gray-600 text-xs font-medium">
+                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          {formatNumber(post.views || 0)}
+                        </div>
                       </td>
 
                       {/* Date */}
@@ -712,6 +724,13 @@ const PostList = () => {
                           />
                           {post.published ? "Live" : "Draft"}
                         </span>
+                        <div className="flex items-center gap-1 text-gray-400">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                          </svg>
+                          {formatNumber(post.views || 0)}
+                        </div>
                         <span className="text-[11px] text-gray-400">
                           {formatTimeAgo(post.createdAt)}
                         </span>
