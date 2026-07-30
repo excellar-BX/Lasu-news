@@ -170,7 +170,7 @@ const ArticleSEO = ({ post }) => {
 // ── Share Modal ──────────────────────────────────────────────────────
 const ShareModal = ({ post, onClose }) => {
   const [copied, setCopied] = useState(false);
-  const pageUrl      = `${SITE_URL}/article/${post.slug}`;
+  const pageUrl      = `${SITE_URL}/news/${post.slug}`;
   const encodedUrl   = encodeURIComponent(pageUrl);
   const encodedTitle = encodeURIComponent(post?.title || "");
 
