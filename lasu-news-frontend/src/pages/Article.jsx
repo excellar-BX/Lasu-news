@@ -20,6 +20,12 @@ const categoryColors = {
   EVENTS:       "bg-orange-50 text-orange-700 ring-1 ring-orange-100",
 };
 
+const campusColors = {
+  OJO:   "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100",
+  EPE:   "bg-teal-50 text-teal-700 ring-1 ring-teal-100",
+  IKEJA: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
+};
+
 // ── Helpers ──────────────────────────────────────────────────────────
 const formatTimeAgo = (date) => {
   const diff = Math.floor((Date.now() - new Date(date)) / 60000);
@@ -649,14 +655,25 @@ const Article = () => {
         <article className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
 
           {/* Category badge */}
-          <span
-            className={`inline-flex items-center text-[11px] font-bold
-                        uppercase tracking-widest px-3 py-1.5 rounded-full
-                        ${categoryColors[post.category] ||
-                          categoryColors.UPDATES}`}
-          >
-            {post.category}
-          </span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`inline-flex items-center text-[11px] font-bold
+                          uppercase tracking-widest px-3 py-1.5 rounded-full
+                          ${categoryColors[post.category] ||
+                            categoryColors.UPDATES}`}
+            >
+              {post.category}
+            </span>
+            {post.campus && (
+              <span
+                className={`inline-flex items-center text-[11px] font-bold
+                            uppercase tracking-widest px-3 py-1.5 rounded-full
+                            ${campusColors[post.campus] || campusColors.OJO}`}
+              >
+                {post.campus} Campus
+              </span>
+            )}
+          </div>
 
           {/* Title — h1 for SEO */}
           <h1

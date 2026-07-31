@@ -7,12 +7,20 @@ import { formatNumber } from "../utils/formatNumber";
 // ─── Constants ───────────────────────────────────────────────────────
 const CATEGORIES = ["All", "Updates", "Trending", "Opportunities", "Spotlight", "Events"];
 
+const CAMPUSES = ["All", "Ojo", "Epe", "Ikeja"];
+
 const CATEGORY_COLORS = {
   UPDATES: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
   TRENDING: "bg-red-50 text-red-700 ring-1 ring-red-100",
   OPPORTUNITIES: "bg-green-50 text-green-700 ring-1 ring-green-100",
   SPOTLIGHT: "bg-purple-50 text-purple-700 ring-1 ring-purple-100",
   EVENTS: "bg-orange-50 text-orange-700 ring-1 ring-orange-100",
+};
+
+const CAMPUS_COLORS = {
+  OJO: "bg-indigo-50 text-indigo-700 ring-1 ring-indigo-100",
+  EPE: "bg-teal-50 text-teal-700 ring-1 ring-teal-100",
+  IKEJA: "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -376,6 +384,8 @@ const Home = () => {
 
   const rawCategory = searchParams.get("category");
   const activeCategory = rawCategory ? rawCategory.toUpperCase() : "All";
+  const rawCampus = searchParams.get("campus");
+  const activeCampus = rawCampus ? rawCampus.toUpperCase() : "All";
   const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch home sections
@@ -404,10 +414,15 @@ const Home = () => {
   });
 
   const { data: categoryData, isLoading: categoryLoading } = useQuery({
-    queryKey: ["posts", "category", activeCategory],
+    queryKey: ["posts", "category", activeCategory, "campus", activeCampus],
     queryFn: () =>
-      getPosts({ limit: 12, category: activeCategory, sort: "latest" }),
-    enabled: activeCategory !== "All",
+      getPosts({ 
+        limit: 12, 
+        category: activeCategory !== "All" ? activeCategory : undefined,
+        campus: activeCampus !== "All" ? activeCampus : undefined,
+        sort: "latest" 
+      }),
+    enabled: activeCategory !== "All" || activeCampus !== "All",
     staleTime: 5 * 60 * 1000,
   });
 
@@ -437,6 +452,20 @@ const Home = () => {
     [searchParams, setSearchParams]
   );
 
+  const handleCampusClick = useCallback(
+    (camp) => {
+      const newParams = new URLSearchParams(searchParams);
+      if (camp === "All") {
+        newParams.delete("campus");
+      } else {
+        newParams.set("campus", camp.toUpperCase());
+      }
+      setSearchParams(newParams);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [searchParams, setSearchParams]
+  );
+
   const handleSearch = useCallback(() => {
     if (searchQuery.trim()) {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
@@ -459,7 +488,7 @@ const Home = () => {
     );
   }
 
-  const isFiltered = activeCategory !== "All";
+  const isFiltered = activeCategory !== "All" || activeCampus !== "All";
 
   return (
     <div className="min-h-screen bg-[#f8fafc]">
@@ -517,6 +546,32 @@ const Home = () => {
               );
             })}
           </div>
+          {/* Campus Filter */}
+          <div className="flex items-center gap-2 overflow-x-auto
+                          scrollbar-hide mt-2">
+            <span className="text-[11px] font-bold text-gray-400 uppercase tracking-widest shrink-0">
+              Campus:
+            </span>
+            {CAMPUSES.map((camp) => {
+              const value = camp === "All" ? "All" : camp.toUpperCase();
+              const isActive = activeCampus === value;
+              return (
+                <button
+                  key={camp}
+                  onClick={() => handleCampusClick(camp)}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-xs
+                              font-semibold transition-all duration-200
+                              ${
+                                isActive
+                                  ? "bg-[#e63946] text-white shadow-sm"
+                                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+                              }`}
+                >
+                  {camp}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -525,8 +580,10 @@ const Home = () => {
         <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
           <h2 className="text-2xl sm:text-3xl font-black text-[#0a0a0a]
                          tracking-tight mb-6 sm:mb-8">
-            {activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase()}
-            {" "}News
+            {activeCategory !== "All" 
+              ? `${activeCategory.charAt(0) + activeCategory.slice(1).toLowerCase()} News`
+              : "All News"}
+            {activeCampus !== "All" && ` - ${activeCampus} Campus`}
           </h2>
 
           {categoryLoading ? (

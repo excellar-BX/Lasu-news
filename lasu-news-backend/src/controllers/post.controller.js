@@ -2,11 +2,12 @@ const prisma = require("../utils/prisma");
 const { slugify } = require("../utils/slugify");
 
 // GET /api/posts — public, paginated, published only
-// Query params: page, limit, category, sort (latest | trending | weekly)
+// Query params: page, limit, category, campus, sort (latest | trending | weekly)
 const getAllPosts = async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const category = req.query.category || undefined;
+  const campus = req.query.campus || undefined;
   const sort = req.query.sort || "latest";
   const skip = (page - 1) * limit;
 
@@ -14,6 +15,7 @@ const getAllPosts = async (req, res) => {
     const where = {
       published: true,
       ...(category && { category }),
+      ...(campus && { campus }),
     };
 
     // Weekly filter: only posts from the last 7 days
@@ -41,6 +43,7 @@ const getAllPosts = async (req, res) => {
           excerpt: true,
           coverImage: true,
           category: true,
+          campus: true,
           published: true,
           views: true,
           createdAt: true,
@@ -86,6 +89,7 @@ const getAllPostsAdmin = async (req, res) => {
           excerpt: true,
           coverImage: true,
           category: true,
+          campus: true,
           published: true,
           views: true,
           createdAt: true,
@@ -177,7 +181,7 @@ const getPostById = async (req, res) => {
 
 // POST /api/posts — admin only
 const createPost = async (req, res) => {
-  const { title, content, excerpt, coverImage, category, published } = req.body;
+  const { title, content, excerpt, coverImage, category, campus, published } = req.body;
 
   if (!title || !content || !excerpt || !category) {
     return res.status(400).json({ message: "title, content, excerpt and category are required" });
@@ -199,6 +203,7 @@ const createPost = async (req, res) => {
         excerpt,
         coverImage: coverImage || null,
         category,
+        campus: campus || "OJO",
         published: published ?? false,
         authorId: req.user.id,
       },
@@ -214,7 +219,7 @@ const createPost = async (req, res) => {
 // PUT /api/posts/:id — admin only
 const updatePost = async (req, res) => {
   const { id } = req.params;
-  const { title, content, excerpt, coverImage, category, published } = req.body;
+  const { title, content, excerpt, coverImage, category, campus, published } = req.body;
 
   try {
     const existing = await prisma.post.findUnique({ where: { id } });
@@ -241,6 +246,7 @@ const updatePost = async (req, res) => {
         ...(excerpt && { excerpt }),
         ...(coverImage !== undefined && { coverImage }),
         ...(category && { category }),
+        ...(campus && { campus }),
         ...(published !== undefined && { published }),
       },
     });

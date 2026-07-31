@@ -10,6 +10,12 @@ const categories = [
   "EVENTS",
 ];
 
+const campuses = [
+  "OJO",
+  "EPE",
+  "IKEJA",
+];
+
 const PostEditor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -21,6 +27,7 @@ const PostEditor = () => {
     excerpt: "",
     coverImage: "",
     category: "UPDATES",
+    campus: "OJO",
     published: false,
   });
   const [loading, setLoading] = useState(false);
@@ -43,6 +50,7 @@ const PostEditor = () => {
         excerpt: post.excerpt,
         coverImage: post.coverImage || "",
         category: post.category,
+        campus: post.campus || "OJO",
         published: post.published,
       });
     } catch (err) {
@@ -419,6 +427,30 @@ Use blank lines to separate paragraphs."
               >
                 {categories.map((cat) => (
                   <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Campus */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-400
+                                uppercase tracking-widest mb-2">
+                Campus Location
+              </label>
+              <select
+                name="campus"
+                value={formData.campus}
+                onChange={handleChange}
+                disabled={isBusy}
+                className="w-full px-3 py-2.5 border border-gray-200
+                           rounded-xl text-sm text-[#0a0a0a]
+                           focus:ring-2 focus:ring-[#e63946]/30
+                           focus:border-[#e63946] outline-none bg-white
+                           transition-all disabled:bg-gray-50
+                           disabled:text-gray-400 font-medium"
+              >
+                {campuses.map((camp) => (
+                  <option key={camp} value={camp}>{camp} Campus</option>
                 ))}
               </select>
             </div>

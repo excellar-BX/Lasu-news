@@ -28,6 +28,7 @@ model Post {
   coverImage  String?
   published   Boolean   @default(false)
   category    Category
+  campus      Campus?   @default(OJO)
   views       Int       @default(0) 
   author      User      @relation(fields: [authorId], references: [id])
   authorId    String
@@ -67,6 +68,12 @@ enum Category {
   SPOTLIGHT
   EVENTS
 }
+enum Campus {
+  OJO
+  EPE
+  IKEJA
+}
+
 
 model BreakingNews {
   id        String   @id @default(uuid())
