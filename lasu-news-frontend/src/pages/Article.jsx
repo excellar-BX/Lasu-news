@@ -10,7 +10,7 @@ import { useAuth } from "../context/AuthContext";
 const SITE_NAME = "LASU News";
 const SITE_URL  = "https://lasunews.com.ng";
 const TWITTER_HANDLE = "@lasunewsng";
-const FALLBACK_OG_IMAGE = `${SITE_URL}/og-image.jpg`; // 1200×630 default
+const FALLBACK_OG_IMAGE = `${SITE_URL}/logo.jpg`; // 1200×630 default
 
 const categoryColors = {
   UPDATES:      "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
