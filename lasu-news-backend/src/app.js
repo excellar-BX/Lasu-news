@@ -17,7 +17,8 @@ app.use(
     origin: (origin, callback) => {
       const allowedOrigins = [
         'https://lasunews.vercel.app',
-'https://lasunews.com.ng',
+        'https://lasunews.com.ng',
+        'https://api.lasunews.com.ng',
         process.env.CLIENT_URL,
         'http://localhost:5173',
         'https://lasu-news.vercel.app'
