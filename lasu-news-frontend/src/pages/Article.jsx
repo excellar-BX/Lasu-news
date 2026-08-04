@@ -8,8 +8,8 @@ import { useAuth } from "../context/AuthContext";
 
 // ── Constants ────────────────────────────────────────────────────────
 const SITE_NAME = "LASU News";
-const SITE_URL  = "https://lasu-news.vercel.app";
-const TWITTER_HANDLE = "@lasunews";
+const SITE_URL  = "https://lasunews.com.ng";
+const TWITTER_HANDLE = "@lasunewsng";
 const FALLBACK_OG_IMAGE = `${SITE_URL}/og-image.jpg`; // 1200×630 default
 
 const categoryColors = {
@@ -103,7 +103,7 @@ const ArticleSEO = ({ post }) => {
       "name": SITE_NAME,
       "logo": {
         "@type": "ImageObject",
-        "url": `${SITE_URL}/logo.png`,
+        "url": `${SITE_URL}/logo.jpg`,
       },
     },
     "mainEntityOfPage": {

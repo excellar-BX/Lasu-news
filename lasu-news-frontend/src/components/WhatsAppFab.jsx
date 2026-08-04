@@ -5,7 +5,7 @@ const EDGE_PADDING = 20;
 const DRAG_THRESHOLD = 5; // px moved before we consider it a drag
 
 const WhatsAppFab = () => {
-  const whatsappNumber = "2348130827166";
+  const whatsappNumber = "2348141632667";
   const whatsappUrl = `https://wa.me/${whatsappNumber}`;
 
   // Track whether position has been initialized

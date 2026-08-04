@@ -6,6 +6,7 @@ const authRoutes = require("./routes/auth.routes");
 const postRoutes = require("./routes/post.routes");
 const commentRoutes = require("./routes/comment.route");
 const breakingNewsRoutes = require("./routes/breakingNews.routes");
+const sitemapRoutes = require("./routes/sitemap.routes");
 const morgan = require('morgan')
 
 
@@ -42,6 +43,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/breaking-news", breakingNewsRoutes);
+app.use("/", sitemapRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {

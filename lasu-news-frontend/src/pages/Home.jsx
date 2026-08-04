@@ -46,7 +46,7 @@ const getFallbackImage = (title = "") =>
 const CategoryBadge = ({ category }) => (
   <span
     className={`inline-flex items-center text-[11px] font-bold uppercase
-                tracking-widest px-2.5 py-1 rounded-full
+                tracking-widest px-2.5 py-1 w-fit rounded-full
                 ${CATEGORY_COLORS[category] ?? CATEGORY_COLORS.UPDATES}`}
   >
     {category}

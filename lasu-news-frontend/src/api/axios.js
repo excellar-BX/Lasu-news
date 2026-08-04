@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "https://lasu-news-backend.vercel.app/api",
+  baseURL: import.meta.env.VITE_API_URL || "https://api.lasunews.com.ng/api",
   withCredentials: true,
 });
 
@@ -56,7 +56,7 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_URL || "https://lasu-news-backend.vercel.app/api"}/auth/refresh`,
+          `${import.meta.env.VITE_API_URL || "https://api.lasunews.com.ng/api"}/auth/refresh`,
           {},
           { withCredentials: true }
         );
