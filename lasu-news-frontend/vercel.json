@@ -6,17 +6,10 @@
     },
     {
       "source": "/news/:slug",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": "(?i).*(facebookexternalhit|Twitterbot|WhatsApp|LinkedInBot|TelegramBot|Googlebot).*"
-        }
-      ],
       "destination": "https://api.lasunews.com.ng/api/posts/og/:slug"
     },
     {
-      "source": "/(.*)",
+      "source": "/:path((?!/?news).*)",
       "destination": "/index.html"
     }
   ]
