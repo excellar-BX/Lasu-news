@@ -7,10 +7,19 @@
     {
       "source": "/news/:slug",
       "destination": "https://api.lasunews.com.ng/api/posts/og/:slug"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/news/(.*)",
+      "dest": "/index.html"
     },
     {
-      "source": "/:path((?!/?news).*)",
-      "destination": "/index.html"
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
     }
   ]
 }
