@@ -83,7 +83,7 @@ const getAllComments = async (req, res) => {
         take: limit,
         orderBy: { createdAt: "desc" },
         include: {
-          user: { select: { id: true, name: true } },
+          user: { select: { id: true, name: true, email: true } },
           post: { select: { id: true, title: true, slug: true } },
         },
       }),
