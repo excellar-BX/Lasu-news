@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Helmet } from "react-helmet-async";
 import { getPostBySlug } from "../api/posts";
-import { addComment, deleteComment } from "../api/comments";
+import { addComment, deleteComment, getPostComments, likeComment, removeLike } from "../api/comments";
 import { useAuth } from "../context/AuthContext";
 
 // ── Constants ────────────────────────────────────────────────────────
@@ -434,6 +434,8 @@ const Article = () => {
   const [commentContent, setCommentContent] = useState("");
   const [pendingDelete, setPendingDelete] = useState(null);
   const [showShare, setShowShare] = useState(false);
+  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyContent, setReplyContent] = useState("");
 
   const { data: postData, isLoading, error } = useQuery({
     queryKey: ["post", slug],
@@ -442,19 +444,23 @@ const Article = () => {
     staleTime: 5 * 60 * 1000,
   });
 
+  const { data: commentsData, refetch: refetchComments } = useQuery({
+    queryKey: ["comments", slug],
+    queryFn: () => getPostComments(postData?.post?.id),
+    enabled: !!postData?.post?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const post = postData?.post;
+  const comments = commentsData?.comments || [];
 
   const addCommentMutation = useMutation({
-    mutationFn: ({ postId, content }) => addComment(postId, content),
+    mutationFn: ({ postId, content, parentId }) => addComment(postId, content, parentId),
     onSuccess: (data) => {
-      queryClient.setQueryData(["post", slug], (old) => ({
-        ...old,
-        post: {
-          ...old.post,
-          comments: [...(old.post.comments || []), data.comment],
-        },
-      }));
+      refetchComments();
       setCommentContent("");
+      setReplyContent("");
+      setReplyingTo(null);
     },
     onError: (err) => {
       console.error("Failed to add comment:", err);
@@ -465,18 +471,34 @@ const Article = () => {
   const deleteCommentMutation = useMutation({
     mutationFn: deleteComment,
     onSuccess: (_, commentId) => {
-      queryClient.setQueryData(["post", slug], (old) => ({
-        ...old,
-        post: {
-          ...old.post,
-          comments: old.post.comments.filter((c) => c.id !== commentId),
-        },
-      }));
+      refetchComments();
       setPendingDelete(null);
     },
     onError: (err) => {
       console.error("Failed to delete comment:", err);
       alert("Failed to delete comment. Please try again.");
+    },
+  });
+
+  const likeCommentMutation = useMutation({
+    mutationFn: ({ commentId, type }) => likeComment(commentId, type),
+    onSuccess: () => {
+      refetchComments();
+    },
+    onError: (err) => {
+      console.error("Failed to like comment:", err);
+      alert("Failed to like comment. Please try again.");
+    },
+  });
+
+  const removeLikeMutation = useMutation({
+    mutationFn: removeLike,
+    onSuccess: () => {
+      refetchComments();
+    },
+    onError: (err) => {
+      console.error("Failed to remove like:", err);
+      alert("Failed to remove like. Please try again.");
     },
   });
 
@@ -486,8 +508,40 @@ const Article = () => {
     addCommentMutation.mutate({ postId: post.id, content: commentContent.trim() });
   };
 
+  const handleSubmitReply = (e) => {
+    e.preventDefault();
+    if (!replyContent.trim() || !post || !replyingTo) return;
+    addCommentMutation.mutate({ 
+      postId: post.id, 
+      content: replyContent.trim(),
+      parentId: replyingTo.id 
+    });
+  };
+
   const handleDeleteComment = () => {
     if (pendingDelete) deleteCommentMutation.mutate(pendingDelete.id);
+  };
+
+  const handleLike = (commentId, type) => {
+    likeCommentMutation.mutate({ commentId, type });
+  };
+
+  const handleRemoveLike = (commentId) => {
+    removeLikeMutation.mutate(commentId);
+  };
+
+  const getUserLikeType = (comment) => {
+    if (!user || !comment.likes) return null;
+    const userLike = comment.likes.find(like => like.userId === user.id);
+    return userLike ? userLike.type : null;
+  };
+
+  const getLikeCounts = (comment) => {
+    if (!comment.likes) return { likes: 0, dislikes: 0 };
+    return {
+      likes: comment.likes.filter(l => l.type === 'LIKE').length,
+      dislikes: comment.likes.filter(l => l.type === 'DISLIKE').length,
+    };
   };
 
   /* ── Loading skeleton ─────────────────────────────────────────────── */
@@ -785,7 +839,7 @@ const Article = () => {
                            min-w-[1.75rem] h-7 px-2 bg-gray-100
                            text-gray-500 text-sm font-bold rounded-full"
               >
-                {post.comments?.length || 0}
+                {comments.length}
               </span>
             </h2>
 
@@ -880,66 +934,275 @@ const Article = () => {
             )}
 
             {/* Comments list */}
-            {post.comments && post.comments.length > 0 ? (
-              <div className="space-y-3">
-                {post.comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className={`bg-white rounded-2xl border border-gray-100
-                                p-5 shadow-sm transition-all duration-300
-                                ${deleteCommentMutation.isPending &&
-                                  pendingDelete?.id === comment.id
-                                  ? "opacity-40 scale-[0.99]" : ""}`}
-                  >
-                    <div className="flex items-start gap-4">
+            {comments && comments.length > 0 ? (
+              <div className="space-y-4">
+                {comments.map((comment) => {
+                  const userLikeType = getUserLikeType(comment);
+                  const { likes, dislikes } = getLikeCounts(comment);
+                  
+                  return (
+                    <div key={comment.id} className="space-y-3">
+                      {/* Main comment */}
                       <div
-                        className="w-10 h-10 rounded-full bg-gradient-to-br
-                                    from-blue-100 to-purple-100 flex
-                                    items-center justify-center text-blue-600
-                                    font-bold text-sm flex-shrink-0"
+                        className={`bg-white rounded-2xl border border-gray-100
+                                    p-5 shadow-sm transition-all duration-300
+                                    ${deleteCommentMutation.isPending &&
+                                      pendingDelete?.id === comment.id
+                                      ? "opacity-40 scale-[0.99]" : ""}`}
                       >
-                        {comment.user?.name?.charAt(0)?.toUpperCase() || "?"}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between
-                                        gap-4 mb-2 flex-wrap">
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-sm text-[#0a0a0a]">
-                              {comment.user?.name || "Unknown"}
-                            </p>
-                            <span className="text-[11px] text-gray-400">
-                              {formatTimeAgo(comment.createdAt)}
-                            </span>
+                        <div className="flex items-start gap-4">
+                          <div
+                            className="w-10 h-10 rounded-full bg-gradient-to-br
+                                        from-blue-100 to-purple-100 flex
+                                        items-center justify-center text-blue-600
+                                        font-bold text-sm flex-shrink-0"
+                          >
+                            {comment.user?.name?.charAt(0)?.toUpperCase() || "?"}
                           </div>
-                          {(user?.id === comment.userId ||
-                            user?.role === "ADMIN") && (
-                            <button
-                              onClick={() => setPendingDelete(comment)}
-                              className="text-[11px] font-semibold
-                                         text-gray-400 hover:text-red-500
-                                         transition-colors flex items-center
-                                         gap-1"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round"
-                                  strokeLinejoin="round" strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138
-                                     21H7.862a2 2 0 01-1.995-1.858L5
-                                     7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1
-                                     1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                              Delete
-                            </button>
-                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between
+                                            gap-4 mb-2 flex-wrap">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-sm text-[#0a0a0a]">
+                                  {comment.user?.name || "Unknown"}
+                                </p>
+                                <span className="text-[11px] text-gray-400">
+                                  {formatTimeAgo(comment.createdAt)}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {/* Like/Dislike buttons */}
+                                {user && (
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => userLikeType === 'LIKE' ? handleRemoveLike(comment.id) : handleLike(comment.id, 'LIKE')}
+                                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors
+                                        ${userLikeType === 'LIKE' 
+                                          ? 'bg-green-50 text-green-600' 
+                                          : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                                      </svg>
+                                      {likes}
+                                    </button>
+                                    <button
+                                      onClick={() => userLikeType === 'DISLIKE' ? handleRemoveLike(comment.id) : handleLike(comment.id, 'DISLIKE')}
+                                      className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors
+                                        ${userLikeType === 'DISLIKE' 
+                                          ? 'bg-red-50 text-red-600' 
+                                          : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                                      </svg>
+                                      {dislikes}
+                                    </button>
+                                  </div>
+                                )}
+                                {/* Reply button */}
+                                {user && (
+                                  <button
+                                    onClick={() => setReplyingTo(replyingTo?.id === comment.id ? null : comment)}
+                                    className="text-[11px] font-semibold
+                                               text-gray-400 hover:text-[#e63946]
+                                               transition-colors flex items-center
+                                               gap-1"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none"
+                                      stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round"
+                                        strokeLinejoin="round" strokeWidth={2}
+                                        d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                    </svg>
+                                    Reply
+                                  </button>
+                                )}
+                                {(user?.id === comment.userId ||
+                                  user?.role === "ADMIN") && (
+                                  <button
+                                    onClick={() => setPendingDelete(comment)}
+                                    className="text-[11px] font-semibold
+                                               text-gray-400 hover:text-red-500
+                                               transition-colors flex items-center
+                                               gap-1"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none"
+                                      stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round"
+                                        strokeLinejoin="round" strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138
+                                           21H7.862a2 2 0 01-1.995-1.858L5
+                                           7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1
+                                           1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                    Delete
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-sm text-gray-700 leading-relaxed">
+                              {comment.content}
+                            </p>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {comment.content}
-                        </p>
                       </div>
+
+                      {/* Reply form */}
+                      {replyingTo?.id === comment.id && user && (
+                        <div className="ml-14">
+                          <form onSubmit={handleSubmitReply} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+                            <div className="flex items-start gap-3 mb-3">
+                              <div
+                                className="w-8 h-8 rounded-full bg-gradient-to-br
+                                            from-blue-500 to-purple-500 flex items-center
+                                            justify-center text-white font-bold text-xs
+                                            flex-shrink-0 ring-2 ring-white shadow-sm"
+                              >
+                                {user.name?.charAt(0)?.toUpperCase() || "U"}
+                              </div>
+                              <textarea
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                placeholder={`Replying to ${comment.user?.name || 'Unknown'}...`}
+                                className="flex-1 px-3 py-2 border border-gray-200
+                                           rounded-xl resize-none focus:ring-2
+                                           focus:ring-[#e63946]/30 focus:border-[#e63946]
+                                           outline-none transition-all text-sm
+                                           placeholder:text-gray-300 bg-gray-50/50"
+                                rows="2"
+                                required
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setReplyingTo(null)}
+                                className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs
+                                           font-semibold text-gray-600 hover:bg-gray-50
+                                           transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={addCommentMutation.isPending || !replyContent.trim()}
+                                className="px-3 py-1.5 bg-[#e63946] text-white
+                                           rounded-lg font-semibold text-xs
+                                           hover:bg-red-700 active:scale-[0.97]
+                                           transition-all disabled:opacity-50
+                                           disabled:cursor-not-allowed
+                                           disabled:active:scale-100"
+                              >
+                                {addCommentMutation.isPending ? "Posting..." : "Reply"}
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      )}
+
+                      {/* Replies */}
+                      {comment.replies && comment.replies.length > 0 && (
+                        <div className="ml-14 space-y-2">
+                          {comment.replies.map((reply) => {
+                            const replyUserLikeType = getUserLikeType(reply);
+                            const { likes: replyLikes, dislikes: replyDislikes } = getLikeCounts(reply);
+                            
+                            return (
+                              <div
+                                key={reply.id}
+                                className={`bg-gray-50 rounded-xl border border-gray-100
+                                            p-4 transition-all duration-300
+                                            ${deleteCommentMutation.isPending &&
+                                              pendingDelete?.id === reply.id
+                                              ? "opacity-40 scale-[0.99]" : ""}`}
+                              >
+                                <div className="flex items-start gap-3">
+                                  <div
+                                    className="w-8 h-8 rounded-full bg-gradient-to-br
+                                                from-green-100 to-teal-100 flex
+                                                items-center justify-center text-green-600
+                                                font-bold text-xs flex-shrink-0"
+                                  >
+                                    {reply.user?.name?.charAt(0)?.toUpperCase() || "?"}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between
+                                                    gap-3 mb-1.5 flex-wrap">
+                                      <div className="flex items-center gap-2">
+                                        <p className="font-semibold text-xs text-[#0a0a0a]">
+                                          {reply.user?.name || "Unknown"}
+                                        </p>
+                                        <span className="text-[10px] text-gray-400">
+                                          {formatTimeAgo(reply.createdAt)}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        {/* Like/Dislike buttons for reply */}
+                                        {user && (
+                                          <div className="flex items-center gap-1">
+                                            <button
+                                              onClick={() => replyUserLikeType === 'LIKE' ? handleRemoveLike(reply.id) : handleLike(reply.id, 'LIKE')}
+                                              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors
+                                                ${replyUserLikeType === 'LIKE' 
+                                                  ? 'bg-green-50 text-green-600' 
+                                                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                            >
+                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                                              </svg>
+                                              {replyLikes}
+                                            </button>
+                                            <button
+                                              onClick={() => replyUserLikeType === 'DISLIKE' ? handleRemoveLike(reply.id) : handleLike(reply.id, 'DISLIKE')}
+                                              className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors
+                                                ${replyUserLikeType === 'DISLIKE' 
+                                                  ? 'bg-red-50 text-red-600' 
+                                                  : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                            >
+                                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.096c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                                              </svg>
+                                              {replyDislikes}
+                                            </button>
+                                          </div>
+                                        )}
+                                        {(user?.id === reply.userId ||
+                                          user?.role === "ADMIN") && (
+                                          <button
+                                            onClick={() => setPendingDelete(reply)}
+                                            className="text-[10px] font-semibold
+                                                       text-gray-400 hover:text-red-500
+                                                       transition-colors flex items-center
+                                                       gap-0.5"
+                                          >
+                                            <svg className="w-3 h-3" fill="none"
+                                              stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round"
+                                                strokeLinejoin="round" strokeWidth={2}
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138
+                                                   21H7.862a2 2 0 01-1.995-1.858L5
+                                                   7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1
+                                                   1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                            Delete
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <p className="text-xs text-gray-700 leading-relaxed">
+                                      {reply.content}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="bg-white rounded-2xl border border-gray-100
