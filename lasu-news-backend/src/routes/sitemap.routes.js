@@ -44,7 +44,7 @@ router.get("/sitemap.xml", async (req, res) => {
   </url>`).join("")}
 </urlset>`;
 
-    res.set("Content-Type", "application/xml");
+    res.set("Content-Type", "application/xml; charset=utf-8");
     res.send(xml);
   } catch (err) {
     console.error("Sitemap generation error:", err);
