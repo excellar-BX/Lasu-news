@@ -44,7 +44,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/breaking-news", breakingNewsRoutes);
-app.use("/sitemap.xml", sitemapRoutes);
+app.use(sitemapRoutes);
 
 // Health check
 app.get("/api/health", (req, res) => {
