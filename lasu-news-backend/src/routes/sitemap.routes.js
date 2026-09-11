@@ -2,6 +2,11 @@ const express = require("express");
 const router = express.Router();
 const prisma = require("../utils/prisma");
 
+// GET /sitemap — redirect to /sitemap.xml
+router.get("/sitemap", (req, res) => {
+  res.redirect(301, "/sitemap.xml");
+});
+
 // GET /sitemap.xml — dynamic sitemap for SEO
 router.get("/sitemap.xml", async (req, res) => {
   try {

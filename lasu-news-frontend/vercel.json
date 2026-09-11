@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/sitemap",
+      "destination": "https://api.lasunews.com.ng/sitemap"
+    },
+    {
       "source": "/sitemap.xml",
       "destination": "https://api.lasunews.com.ng/sitemap.xml"
     },
@@ -18,7 +22,7 @@
       "handle": "filesystem"
     },
     {
-      "src": "/.*",
+      "src": "/(?!sitemap|sitemap\\.xml).*",
       "dest": "/index.html"
     }
   ]
